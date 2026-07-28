@@ -15,3 +15,34 @@ help: ## Mostra esta mensagem de ajuda
 setup: ## Cria .venv e instala dependências
 	uv venv
 	uv pip install -e ".[dev]"
+
+
+##@ Qualidade de Código
+# Estes comandos verificam estilo e tipos, NÃO lógica.
+# Para testar lógica, use: make test
+#
+# Fluxo típico:
+#   make fix && make format   # Corrige e formata
+#   make check                # Verifica se está tudo ok
+#   git commit
+
+lint: ## Encontra problemas (imports, sintaxe) — não altera arquivos
+	uv run ruff check .
+
+format: ## Formata código — ALTERA arquivos
+	uv run ruff format .
+
+format-check: ## Verifica se está formatado — não altera (para CI)
+	uv run ruff format --check .
+
+fix: ## Corrige problemas automaticamente — ALTERA arquivos
+	uv run ruff check --fix .
+
+typecheck: ## Verifica tipos estáticos (pyright) — não altera arquivos
+	uv run pyright src/
+
+check: ## Verifica tudo (lint + format + types) — não altera arquivos
+	uv run ruff check . && uv run ruff format --check . && uv run pyright src/
+
+ci: ## CI/CD: verifica tudo + roda testes — não altera arquivos
+	uv run ruff check . && uv run ruff format --check . && uv run pyright src/ && uv run pytest
