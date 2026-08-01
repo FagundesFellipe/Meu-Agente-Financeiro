@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Gerenciador de Prompts{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50:  '#fdf8f0',
+                            100: '#f9eddb',
+                            200: '#f2d7b0',
+                            300: '#e8bb7a',
+                            400: '#dd9a4a',
+                            500: '#d4812a',
+                            600: '#bd6b22',
+                            700: '#9b531f',
+                            800: '#7d4320',
+                            900: '#66391d',
+                            950: '#391c0c',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-brand-50 text-brand-900 min-h-screen font-sans">
+
+    <!-- Navbar -->
+    <nav class="bg-brand-900 text-brand-50 shadow-lg">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <a href="{{ url_for('index') }}" class="text-xl font-bold tracking-tight hover:text-brand-300 transition-colors">
+                Gerenciador de Prompts
+            </a>
+            <span class="text-brand-400 text-sm">v0.1.0</span>
+        </div>
+    </nav>
+
+    <!-- Mensagens flash -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="max-w-6xl mx-auto px-4 mt-4 space-y-2">
+                {% for category, message in messages %}
+                    <div class="px-4 py-3 rounded-lg border text-sm font-medium
+                        {% if category == 'success' %}
+                            bg-green-50 border-green-300 text-green-800
+                        {% elif category == 'error' %}
+                            bg-red-50 border-red-300 text-red-800
+                        {% else %}
+                            bg-brand-100 border-brand-300 text-brand-800
+                        {% endif %}
+                    ">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Conteúdo -->
+    <main class="max-w-6xl mx-auto px-4 py-6">
+        {% block content %}{% endblock %}
+    </main>
+
+</body>
+</html>
