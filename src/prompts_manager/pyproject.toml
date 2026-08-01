@@ -1,0 +1,11 @@
+[project]
+name = "prompts-manager"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13.1"
+dependencies = [
+    "flask>=3.0",
+    "flask-wtf>=1.2",
+    "pydantic-settings>=2.0",
+]

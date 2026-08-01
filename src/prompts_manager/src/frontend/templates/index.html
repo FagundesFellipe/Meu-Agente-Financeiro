@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Gerenciador de Prompts — Início{% endblock %}
+{% block content %}
+
+<h1 class="text-2xl font-bold text-brand-900 mb-6">Prompts</h1>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <!-- Formulário de criação -->
+    <div class="lg:col-span-1">
+        <div class="bg-white rounded-xl shadow border border-brand-200 p-6 sticky top-6">
+            <h2 class="text-lg font-semibold text-brand-800 mb-4">Novo prompt</h2>
+            <form method="POST" class="space-y-3">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div>
+                    <label for="prompt_name" class="block text-sm font-medium text-brand-700 mb-1">Nome</label>
+                    <input type="text" name="prompt_name" id="prompt_name" required maxlength="64"
+                           class="w-full px-3 py-2 border border-brand-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none text-sm"
+                           placeholder="ex: saudacao">
+                </div>
+                <div>
+                    <label for="prompt_content" class="block text-sm font-medium text-brand-700 mb-1">Conteúdo</label>
+                    <textarea name="prompt_content" id="prompt_content" required rows="5"
+                              class="w-full px-3 py-2 border border-brand-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none text-sm font-mono"
+                              placeholder="Você é um assistente útil..."></textarea>
+                </div>
+                <div>
+                    <label for="model" class="block text-sm font-medium text-brand-700 mb-1">Modelo</label>
+                    <input type="text" name="model" id="model" required maxlength="100"
+                           class="w-full px-3 py-2 border border-brand-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none text-sm"
+                           placeholder="ex: gpt-4o">
+                </div>
+                <div>
+                    <label for="owner" class="block text-sm font-medium text-brand-700 mb-1">Autor</label>
+                    <input type="text" name="owner" id="owner" required maxlength="100"
+                           class="w-full px-3 py-2 border border-brand-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none text-sm"
+                           placeholder="Seu nome">
+                </div>
+                <div>
+                    <label for="change_note" class="block text-sm font-medium text-brand-700 mb-1">Nota da alteração</label>
+                    <input type="text" name="change_note" id="change_note" required maxlength="500"
+                           class="w-full px-3 py-2 border border-brand-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none text-sm"
+                           placeholder="Versão inicial">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label for="temperature" class="block text-sm font-medium text-brand-700 mb-1">Temperatura</label>
+                        <input type="number" name="temperature" id="temperature" step="0.1" min="0" max="2"
+                               class="w-full px-3 py-2 border border-brand-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none text-sm">
+                    </div>
+                    <div>
+                        <label for="change_type" class="block text-sm font-medium text-brand-700 mb-1">Incremento</label>
+                        <select name="change_type" id="change_type"
+                                class="w-full px-3 py-2 border border-brand-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none text-sm bg-white">
+                            <option value="patch">Correção (patch)</option>
+                            <option value="minor">Menor (minor)</option>
+                            <option value="major">Maior (major)</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label for="reasoning_effort" class="block text-sm font-medium text-brand-700 mb-1">Esforço de raciocínio</label>
+                    <select name="reasoning_effort" id="reasoning_effort"
+                            class="w-full px-3 py-2 border border-brand-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none text-sm bg-white">
+                        <option value="">—</option>
+                        <option value="low">Baixo</option>
+                        <option value="medium">Médio</option>
+                        <option value="high">Alto</option>
+                    </select>
+                </div>
+                <button type="submit"
+                        class="w-full py-2 px-4 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-lg transition-colors text-sm cursor-pointer">
+                    Criar prompt
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Lista de prompts -->
+    <div class="lg:col-span-2">
+        {% if prompts %}
+            <div class="grid gap-4">
+                {% for p in prompts %}
+                    <a href="{{ url_for('prompt_detail', name=p.name) }}"
+                       class="block bg-white rounded-xl shadow border border-brand-200 p-5 hover:shadow-md hover:border-brand-400 transition-all group">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-semibold text-brand-800 group-hover:text-brand-600 transition-colors">
+                                {{ p.name }}
+                            </h3>
+                            <div class="flex items-center gap-3 text-sm">
+                                {% if p.active_version %}
+                                    <span class="px-2 py-1 bg-brand-100 text-brand-700 rounded-md font-medium text-xs">
+                                        {{ p.active_version }}
+                                    </span>
+                                    <span class="w-2 h-2 rounded-full bg-green-500 inline-block" title="Ativa"></span>
+                                {% else %}
+                                    <span class="text-brand-400">sem versão ativa</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <p class="text-sm text-brand-500 mt-1">{{ p.version_count }} versão(ões)</p>
+                    </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="bg-white rounded-xl shadow border border-brand-200 p-12 text-center">
+                <p class="text-brand-500 text-lg">Nenhum prompt ainda.</p>
+                <p class="text-brand-400 text-sm mt-1">Crie seu primeiro prompt usando o formulário ao lado.</p>
+            </div>
+        {% endif %}
+    </div>
+
+</div>
+
+{% endblock %}
