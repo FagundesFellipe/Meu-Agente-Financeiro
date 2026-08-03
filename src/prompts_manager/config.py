@@ -1,5 +1,5 @@
 """
-Centralized configuration via environment variables.
+Configuração centralizada via variáveis de ambiente.
 """
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     prompt_manager_port: int = 5000
     flask_secret_key: str = "prompt-manager-dev-key"
     flask_debug: bool = False
+
+    # --- Timezone
+    prompt_manager_server_timezone: str = "UTC"
 
 
 settings = Settings()
