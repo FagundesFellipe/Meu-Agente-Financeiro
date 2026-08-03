@@ -1,13 +1,13 @@
-"""Semantic version parsing, formatting, and bumping utilities for prompt versioning."""
+"""Utilitários de parsing, formatação e incremento de versão semântica para versionamento de prompts."""
 
 import re
 
 
 def parse_version(version_str: str) -> tuple[int, int, int]:
-    """Parse a version string into a ``(major, minor, patch)`` tuple.
+    """Converte uma string de versão em uma tupla ``(major, minor, patch)``.
 
-    Accepts ``"v1.2.3"`` or ``"1.2.3"``. Raises ``ValueError``
-    if the string does not match the expected ``X.Y.Z`` pattern.
+    Aceita ``"v1.2.3"`` ou ``"1.2.3"``. Lança ``ValueError``
+    se a string não corresponder ao padrão ``X.Y.Z`` esperado.
     """
     match = re.match(r"v?(\d+)\.(\d+)\.(\d+)", version_str)
     if not match:
@@ -16,24 +16,24 @@ def parse_version(version_str: str) -> tuple[int, int, int]:
 
 
 def format_version(major: int, minor: int, patch: int) -> str:
-    """Format a ``(major, minor, patch)`` tuple into a version string.
+    """Formata uma tupla ``(major, minor, patch)`` em uma string de versão.
 
-    Example: ``"v1.2.3"``.
+    Exemplo: ``"v1.2.3"``.
     """
     return f"v{major}.{minor}.{patch}"
 
 
 def get_next_version(existing_versions: list[str], change_type: str = "patch") -> str:
-    """Compute the next version based on existing versions and the desired bump type.
+    """Calcula a próxima versão com base nas versões existentes e no tipo de incremento.
 
-    If no valid existing versions are found, returns ``"v1.0.0"``.
+    Se nenhuma versão válida for encontrada, retorna ``"v1.0.0"``.
 
     Args:
-        existing_versions: List of version strings already in use.
-        change_type: One of ``"major"``, ``"minor"``, or ``"patch"`` (default).
+        existing_versions: Lista de strings de versão já em uso.
+        change_type: Um de ``"major"``, ``"minor"`` ou ``"patch"`` (padrão).
 
     Returns:
-        The next version string.
+        A string da próxima versão.
     """
     if not existing_versions:
         return "v1.0.0"

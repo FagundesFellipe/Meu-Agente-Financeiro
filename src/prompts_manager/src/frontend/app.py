@@ -5,12 +5,32 @@ e descontinuar versões de prompts, utilizando o armazenamento baseado em arquiv
 """
 
 import re
+from datetime import UTC, datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from flask import Flask, flash, redirect, render_template, request, url_for
 from flask_wtf.csrf import CSRFProtect
 
 from prompts_manager.config import settings
 from prompts_manager.src import prompt_strore as store
+from shared.llm import ModelId
+
+
+def _get_tz() -> ZoneInfo:
+    try:
+        return ZoneInfo(settings.prompt_manager_server_timezone)
+    except (ZoneInfoNotFoundError, KeyError):
+        return ZoneInfo("UTC")
+
+
+def _format_datetime(iso_string: str, fmt: str = "%d/%m/%Y %H:%M") -> str:
+    try:
+        dt = datetime.fromisoformat(iso_string)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=UTC)
+        return dt.astimezone(_get_tz()).strftime(fmt)
+    except (ValueError, TypeError):
+        return iso_string
 
 
 def create_app() -> Flask:
@@ -20,6 +40,18 @@ def create_app() -> Flask:
     )
     app.secret_key = settings.flask_secret_key
     csrf = CSRFProtect(app)
+
+    @app.context_processor
+    def _inject_template_globals():
+        return {
+            "model_options": [(m.value, m.name) for m in ModelId],
+            "app_timezone": settings.prompt_manager_server_timezone,
+        }
+
+    def _tz_filter(iso_string: str, fmt: str = "%d/%m/%Y %H:%M") -> str:
+        return _format_datetime(iso_string, fmt)
+
+    app.jinja_env.filters["localtime"] = _tz_filter
 
     _validate_prompt_dir()
 

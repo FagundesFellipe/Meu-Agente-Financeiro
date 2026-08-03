@@ -1,4 +1,6 @@
-"""""" """Script standalone de migração do banco de dados.
+(
+    """"""
+    """Script standalone de migração do banco de dados.
 
 Lê arquivos SQL de db/migrations/ e aplica os pendentes em ordem.
 Controla quais migrações já foram aplicadas via tabela _migrations.
@@ -8,6 +10,7 @@ Uso:
 
 Requer a variável DATABASE_URL configurada (via .env ou env var).
 """
+)
 
 import os
 import sys

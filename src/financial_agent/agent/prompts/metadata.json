@@ -1,3 +1,5 @@
 {
-  "active_versions": {}
+  "active_versions": {
+    "ROUTER_SYSTEM_PROMPT": "v1.0.0"
+  }
 }

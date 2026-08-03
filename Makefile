@@ -1,5 +1,5 @@
 -include .env
-.PHONY: help dev setup db api worker frontend up down logs lint format format-check fix typecheck check ci test test-x test-v clean rag-phase-0 prompt-manager-serve
+.PHONY: help dev setup db api worker frontend up down logs lint format format-check fix typecheck check ci test test-x test-v clean rag-phase-0 prompt-manager-serve sync-categories
 
 # Cores para output
 CYAN := \033[36m
@@ -77,3 +77,8 @@ test-s: ##Roda testes com logs de print() adicionado
 
 prompt-manager-serve: ## Inicia o servidor Flask do gerenciador de prompts
 	uv run python -m prompts_manager.src.main
+
+
+##@ Banco de Dados
+sync-categories: ## Sincroniza categorias globais (categories.py → PostgreSQL)
+	uv run python -c "from financial_agent.shared.db_sync_categories import sync_categories_from_env; inserted = sync_categories_from_env(); print(f'{inserted} categorias inseridas.')"
