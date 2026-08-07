@@ -7,15 +7,57 @@ do projeto a partir de variáveis de ambiente ou arquivo .env.
 Uso:
     from financial_agent.shared.config import settings
 
-    print(settings.database_url)
-    print(settings.rate_limit_per_hour)
 
 Todas as configurações possuem valores padrão sensatos para desenvolvimento local.
 Em produção, configure via variáveis de ambiente ou .env.
 """
 
+import logging
+import os
+
+import structlog
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _configure_structlog() -> None:
+    """Configura formatação e nível de log do structlog.
+
+    Em desenvolvimento local, usa formato colorido e legível.
+    Em produção (``ENV=production``), usa JSON estruturado.
+    """
+    is_production = os.environ.get("ENV", "").lower() == "production"
+
+    shared_processors = [
+        structlog.contextvars.merge_contextvars,
+        structlog.processors.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso"),
+    ]
+
+    if is_production:
+        structlog.configure(
+            processors=[
+                *shared_processors,
+                structlog.processors.dict_tracebacks,
+                structlog.processors.JSONRenderer(),
+            ],
+            wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
+            context_class=dict,
+            logger_factory=structlog.PrintLoggerFactory(),
+        )
+    else:
+        structlog.configure(
+            processors=[
+                *shared_processors,
+                structlog.dev.ConsoleRenderer(colors=True),
+            ],
+            wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG),
+            context_class=dict,
+            logger_factory=structlog.PrintLoggerFactory(),
+        )
+
+
+_configure_structlog()
 
 
 class Settings(BaseSettings):
@@ -30,9 +72,14 @@ class Settings(BaseSettings):
     openrouter_midia_model: str = "google/gemini-2.5-flash-lite"
 
     # --- DATABASE
-    database_url: str = (
-        "postgresql://postgres:postgres@localhost:5433/meu_agente_financeiro"
-    )
+    database_url: str = ""
+    db_pool_min_size: int = 1
+    db_pool_max_size: int = 10
+    db_pool_open_timeout: float = 10.0
+
+    # --- Agente ---
+    default_timezone: str = "America/Sao_Paulo"
+    fallback_category_name: str = "Outros gastos"
 
     # --- LLM Rate Limit ---
     llm_rate_limit_requests_per_second: float = 0.5

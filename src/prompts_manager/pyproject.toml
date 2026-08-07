@@ -7,5 +7,6 @@ requires-python = ">=3.13.1"
 dependencies = [
     "flask>=3.0",
     "flask-wtf>=1.2",
+    "structlog==25.5.0",
     "pydantic-settings>=2.0",
 ]

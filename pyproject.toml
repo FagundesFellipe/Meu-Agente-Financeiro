@@ -16,6 +16,7 @@ dependencies = [
     "psycopg[binary,pool]==3.3.2",
     "pydantic-settings==2.12.0",
     "structlog==25.5.0",
+    "ipython>=9.16.0",
 ]
 
 [dependency-groups]
@@ -49,6 +50,10 @@ where = ["src"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+pythonpath = ["src"]
+markers = [
+    "db: testes que exigem um Postgres acessível em DATABASE_URL",
+]
 
 [tool.uv.workspace]
 members = [

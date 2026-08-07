@@ -5,8 +5,6 @@ import re
 
 import pytest
 
-from tests.integrations.helper import patched_store, temp_prompts_dir  # noqa: F401
-
 _FAKE_CONTENT = "This is fake prompt content for testing."
 _FAKE_MODEL = "gpt-4-test"
 _FAKE_OWNER = "ci-tester"
@@ -15,7 +13,7 @@ _FAKE_NOTE = "Automated test version."
 
 class TestGetPromptDir:
     def test_valid_name(self, patched_store, temp_prompts_dir):
-        """Nome de prompt válido resolve para um caminho dentro do diretório de prompts."""
+        """Nome de prompt válido resolve para caminho dentro do dir de prompts."""
         result = patched_store.get_prompt_dir("my-prompt_v1")
         expected = temp_prompts_dir / "my-prompt_v1"
         assert result == expected
@@ -227,7 +225,7 @@ class TestListVersions:
 
 class TestLoadPromptSpecificVersion:
     def test_falls_back_to_latest_when_no_active(self, patched_store):
-        """Quando não há versão ativa definida, a versão semver mais recente é carregada."""
+        """Sem versão ativa definida, a versão semver mais recente é carregada."""
         prompt_dir = patched_store.get_prompt_dir("fallback-test")
         prompt_dir.mkdir()
 

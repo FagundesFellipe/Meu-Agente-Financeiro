@@ -5,27 +5,15 @@
 
 CREATE TABLE IF NOT EXISTS "user" (
     id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    phone_number      TEXT NOT NULL UNIQUE,                        -- Número de telefone normalizado (canal primário: WhatsApp)
-    name              TEXT,                                        -- Nome de exibição do usuário (coletado no onboarding)
-    timezone          TEXT NOT NULL DEFAULT 'America/Sao_Paulo',   -- Fuso horário do usuário para interpretação de datas
-    currency          TEXT NOT NULL DEFAULT 'BRL',                 -- Moeda padrão do usuário (ISO 4217)
-    onboarding_status TEXT NOT NULL DEFAULT 'pending',             -- Estado do onboarding: pending | in_progress | completed
-    deleted_at        TIMESTAMPTZ,                                 -- Soft delete para conformidade LGPD (NULL = conta ativa)
+    channel           TEXT NOT NULL CHECK(channel IN ('telegram','whatsapp')),         -- Canal de comunicação: whatsapp | telegram
+    external_user_id  TEXT NOT NULL,                                                   -- Identificador do usuário no canal externo (ex.: número WhatsApp, ID Telegram)
+    name              TEXT,                                                            -- Nome de exibição do usuário (coletado no onboarding)
+    timezone          TEXT NOT NULL DEFAULT 'America/Sao_Paulo',                       -- Fuso horário do usuário para interpretação de datas
+    currency          TEXT NOT NULL DEFAULT 'BRL',                                     -- Moeda padrão do usuário (ISO 4217)
+    onboarding_status TEXT NOT NULL DEFAULT 'pending',                                 -- Estado do envio da mensagem de boas-vindas: pending | completed
+    deleted_at        TIMESTAMPTZ,                                                     -- Soft delete para conformidade LGPD (NULL = conta ativa)
     created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- ============================================================================
--- Vincula um usuário interno a um ou mais canais externos (WhatsApp, Telegram).
--- Permite que o mesmo usuário seja contatado por múltiplos canais.
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS user_channel (
-    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id          UUID NOT NULL REFERENCES "user"(id),       -- Usuário interno proprietário do canal
-    channel          TEXT NOT NULL,                                -- Canal de comunicação: whatsapp | telegram
-    external_user_id TEXT NOT NULL,                                -- Identificador do usuário no canal externo (ex.: número WhatsApp, ID Telegram)
-    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     UNIQUE (channel, external_user_id)
 );
@@ -67,15 +55,15 @@ CREATE UNIQUE INDEX uq_category_per_user
 
 CREATE TABLE IF NOT EXISTS recurring_expense (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id         UUID NOT NULL REFERENCES "user"(id),       -- Usuário proprietário do gasto fixo
-    category_id     UUID NOT NULL REFERENCES category(id),     -- Categoria associada ao gasto fixo
-    description     TEXT NOT NULL,                                -- Descrição do gasto fixo (ex.: "Internet", "Netflix")
-    amount          NUMERIC(12,2) NOT NULL CHECK (amount > 0),                       -- Valor mensal esperado (sempre decimal, nunca float)
-    payment_method  TEXT CHECK(payment_method IN ('pix', 'credit_card', 'debit_card', 'cash', 'not_informed')),                                         -- Meio de pagamento padrão: pix | credit_card | debit_card | cash | not_informed
-    recurrence_day  INTEGER NOT NULL CHECK (recurrence_day BETWEEN 1 AND 31),                             -- Dia do mês em que o gasto ocorre (1 a 31)
-    starts_at       DATE NOT NULL DEFAULT CURRENT_DATE,          -- Data de início da recorrência
-    ends_at         DATE,                                         -- Data de término da recorrência (NULL = sem data fim)
-    is_active       BOOLEAN NOT NULL DEFAULT TRUE,               -- Se o gasto fixo está ativo (FALSE = cancelado/desativado)
+    user_id         UUID NOT NULL REFERENCES "user"(id),                                                           -- Usuário proprietário do gasto fixo
+    category_id     UUID NOT NULL REFERENCES category(id),                                                         -- Categoria associada ao gasto fixo
+    description     TEXT NOT NULL,                                                                                 -- Descrição do gasto fixo (ex.: "Internet", "Netflix")
+    amount          NUMERIC(12,2) NOT NULL CHECK (amount > 0),                                                     -- Valor mensal esperado (sempre decimal, nunca float)
+    payment_method  TEXT CHECK(payment_method IN ('pix', 'credit_card', 'debit_card', 'cash', 'not_informed')),    -- Meio de pagamento padrão: pix | credit_card | debit_card | cash | not_informed
+    recurrence_day  INTEGER NOT NULL CHECK (recurrence_day BETWEEN 1 AND 31),                                      -- Dia do mês em que o gasto ocorre (1 a 31)
+    starts_at       DATE NOT NULL DEFAULT CURRENT_DATE,                                                            -- Data de início da recorrência
+    ends_at         DATE,                                                                                          -- Data de término da recorrência (NULL = sem data fim)
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,                                                                 -- Se o gasto fixo está ativo (FALSE = cancelado/desativado)
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -89,18 +77,28 @@ CREATE TABLE IF NOT EXISTS recurring_expense (
 
 CREATE TABLE IF NOT EXISTS expense (
     id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id              UUID NOT NULL REFERENCES "user"(id),           -- Usuário proprietário do gasto
-    category_id          UUID NOT NULL REFERENCES category(id),         -- Categoria do gasto (obrigatória)
-    source_message_id    UUID REFERENCES message_queue(id),              -- Referência à mensagem de origem (tabela message_queue em 001)
-    recurring_expense_id UUID REFERENCES recurring_expense(id),         -- Gasto fixo de origem, se gerado automaticamente
-    amount               NUMERIC(12,2) NOT NULL CHECK (amount > 0),                           -- Valor do gasto (precisão decimal, nunca float)
-    description          TEXT NOT NULL,                                    -- Descrição normalizada (ex.: "Almoço", "Gasolina")
-    original_description TEXT,                                             -- Texto original do usuário antes da normalização (para auditoria)
-    payment_method       TEXT CHECK(payment_method IN ('pix', 'credit_card', 'debit_card', 'cash', 'not_informed')),                                             -- Meio de pagamento: pix | credit_card | debit_card | cash | not_informed
-    occurred_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),                             -- Data e hora em que o gasto ocorreu (padrão: timestamp da mensagem)
-    confidence           NUMERIC(5,4) DEFAULT NULL CHECK (confidence BETWEEN 0 AND 1),                       -- Nível de confiança da extração pelo LLM (0.0000 a 1.0000)
+    user_id              UUID NOT NULL REFERENCES "user"(id),                                                          -- Usuário proprietário do gasto
+    category_id          UUID NOT NULL REFERENCES category(id),                                                        -- Categoria do gasto (obrigatória)
+    source_message_id    UUID REFERENCES message_queue(id),                                                            -- Referência à mensagem de origem (tabela message_queue em 001)
+    recurring_expense_id UUID REFERENCES recurring_expense(id),                                                        -- Gasto fixo de origem, se gerado automaticamente
+    amount               NUMERIC(12,2) NOT NULL CHECK (amount > 0),                                                    -- Valor do gasto (precisão decimal, nunca float). Em parcelamentos, é o valor de CADA parcela.
+    description          TEXT NOT NULL,                                                                                -- Descrição normalizada (ex.: "Almoço", "Gasolina")
+    original_description TEXT,                                                                                         -- Texto original do usuário antes da normalização (para auditoria)
+    payment_method       TEXT CHECK(payment_method IN ('pix', 'credit_card', 'debit_card', 'cash', 'not_informed')),   -- Meio de pagamento: pix | credit_card | debit_card | cash | not_informed
+    occurred_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),                                                           -- Data e hora em que o gasto ocorreu (padrão: timestamp da mensagem)
+    installment_number   INTEGER CHECK (installment_number >= 1),                                                      -- Número da parcela (1-based). NULL = gasto à vista/único.
+    total_installments   INTEGER CHECK (total_installments >= 1),                                                      -- Total de parcelas. NULL = gasto à vista/único.
+    confidence           NUMERIC(5,4) DEFAULT NULL CHECK (confidence BETWEEN 0 AND 1),                                 -- Nível de confiança da extração pelo LLM (0.0000 a 1.0000)
     created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    -- Consistência do parcelamento: quando ambos os campos estão presentes,
+    -- installment_number não pode exceder total_installments.
+    CONSTRAINT chk_installment_range CHECK (
+        (installment_number IS NULL AND total_installments IS NULL)
+        OR
+        (installment_number IS NOT NULL AND total_installments IS NOT NULL
+         AND installment_number <= total_installments)
+    )
 );
 
 -- ============================================================================
@@ -110,12 +108,12 @@ CREATE TABLE IF NOT EXISTS expense (
 
 CREATE TABLE IF NOT EXISTS expense_audit_log (
     id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    expense_id        UUID NOT NULL REFERENCES expense(id),     -- Gasto que foi alterado
-    user_id           UUID NOT NULL REFERENCES "user"(id),      -- Usuário proprietário do gasto (desnormalizado para queries rápidas)
-    action            TEXT NOT NULL CHECK (action IN ('created', 'updated',  'corrected')),                               -- Tipo da ação: created | updated | corrected
-    before_data       JSONB,                                       -- Estado do gasto antes da alteração (NULL na criação)
-    after_data        JSONB NOT NULL,                              -- Estado do gasto após a alteração
-    source_message_id UUID REFERENCES message_queue(id),             -- Mensagem que originou esta ação (tabela message_queue em 001)
+    expense_id        UUID NOT NULL REFERENCES expense(id),                                     -- Gasto que foi alterado
+    user_id           UUID NOT NULL REFERENCES "user"(id),                                      -- Usuário proprietário do gasto (desnormalizado para queries rápidas)
+    action            TEXT NOT NULL CHECK (action IN ('created', 'updated',  'corrected')),     -- Tipo da ação: created | updated | corrected
+    before_data       JSONB,                                                                    -- Estado do gasto antes da alteração (NULL na criação)
+    after_data        JSONB NOT NULL,                                                           -- Estado do gasto após a alteração
+    source_message_id UUID REFERENCES message_queue(id),                                        -- Mensagem que originou esta ação (tabela message_queue em 001)
     created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -130,10 +128,10 @@ CREATE TABLE IF NOT EXISTS model_usage (
     message_id    UUID NOT NULL REFERENCES message_queue(id),      -- Referência à mensagem processada (tabela message_queue em 001)
     provider      TEXT NOT NULL,                                   -- Provedor do modelo (ex.: openai, anthropic, google)
     model         TEXT NOT NULL,                                   -- Nome do modelo utilizado (ex.: gpt-4o-mini, claude-3-haiku)
-    input_tokens  INTEGER NOT NULL,                               -- Quantidade de tokens de entrada consumidos
-    output_tokens INTEGER NOT NULL,                               -- Quantidade de tokens de saída gerados
-    cost          NUMERIC(10,6) NOT NULL,                         -- Custo estimado da chamada em USD
-    latency_ms    INTEGER NOT NULL,                               -- Latência da chamada ao modelo em milissegundos
+    input_tokens  INTEGER NOT NULL,                                -- Quantidade de tokens de entrada consumidos
+    output_tokens INTEGER NOT NULL,                                -- Quantidade de tokens de saída gerados
+    cost          NUMERIC(10,6) NOT NULL,                          -- Custo estimado da chamada em USD
+    latency_ms    INTEGER NOT NULL,                                -- Latência da chamada ao modelo em milissegundos
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

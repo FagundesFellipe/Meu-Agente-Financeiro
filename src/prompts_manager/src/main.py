@@ -1,26 +1,30 @@
 import os
 import sys
 
+import structlog
+
 from prompts_manager.config import settings
 from prompts_manager.src.frontend.app import create_app
 
+logger = structlog.get_logger()
+
 
 def main() -> None:
+    if settings.flask_debug and settings.environment == "production":
+        raise RuntimeError("FLASK_DEBUG não pode ser True em produção")
+
     prompt_dir = os.environ.get("PROMPT_DIR", settings.prompt_dir)
 
     if not prompt_dir:
-        print("❌ Erro: PROMPT_DIR não está definido.")
-        print()
-        print("   Adicione ao arquivo .env:")
-        print("     PROMPT_DIR=/caminho/para/prompts")
-        print()
-        print("   Ou exporte a variável:")
-        print("     export PROMPT_DIR=/caminho/para/prompts")
-        print()
+        logger.error("PROMPT_DIR não está definido.")
+        logger.error(
+            "Adicione ao arquivo .env: PROMPT_DIR=/caminho/para/prompts "
+            "ou exporte a variável: export PROMPT_DIR=/caminho/para/prompts"
+        )
         sys.exit(1)
 
-    print(f"📂 Prompt directory: {prompt_dir}")
-    print("🚀 Iniciando servidor em http://127.0.0.1:5000")
+    logger.info("Prompt directory definido", prompt_dir=prompt_dir)
+    logger.info("Iniciando servidor", url="http://127.0.0.1:5000")
 
     app = create_app()
     app.run(

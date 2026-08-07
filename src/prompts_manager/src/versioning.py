@@ -1,4 +1,4 @@
-"""Utilitários de parsing, formatação e incremento de versão semântica para versionamento de prompts."""
+"""Parsing, formatação e incremento de versão semântica para prompts."""
 
 import re
 

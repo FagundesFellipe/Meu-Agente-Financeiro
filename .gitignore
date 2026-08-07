@@ -35,6 +35,10 @@ node_modules/
 tasks.json
 tasks/ 
 
+# Docs - AI generated explanations
+docs/langgraph-runtime-explicacao.md
+docs/macro_diagram.md
+
 # AI CODE AGENTS
 .claude
 .opencode
@@ -43,3 +47,6 @@ opencode.json
 # TASKMASTER
 .taskmaster
 .mcp.json
+
+# LANGCHAIN/LANGGRAPH
+.langgraph_api

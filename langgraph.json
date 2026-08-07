@@ -1,0 +1,7 @@
+{
+    "dependencies": ["."],
+    "graphs": {
+        "meu_assistente_financeiro": "./src/financial_agent/agent/build_graph_workflow.py:graph"
+    },
+    "env": ".env"
+}

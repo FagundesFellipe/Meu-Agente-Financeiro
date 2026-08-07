@@ -121,7 +121,7 @@ def create_chat_model(
     """
 
     api_key = settings.openrouter_api_key
-    secrect_key = SecretStr(api_key.get_secret_value()) if api_key else None
+    secret_key = SecretStr(api_key.get_secret_value()) if api_key else None
 
     rate_limiter = _get_rate_limiter(
         requests_per_second=settings.llm_rate_limit_requests_per_second,
@@ -130,7 +130,7 @@ def create_chat_model(
 
     kwargs: dict = {
         "model": model or settings.openrouter_midia_model,
-        "api_key": secrect_key,
+        "api_key": secret_key,
         "base_url": settings.openrouter_base_url,
         "rate_limiter": rate_limiter,
     }

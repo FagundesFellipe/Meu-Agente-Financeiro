@@ -1,5 +1,5 @@
 -include .env
-.PHONY: help dev setup db api worker frontend up down logs lint format format-check fix typecheck check ci test test-x test-v clean rag-phase-0 prompt-manager-serve sync-categories
+.PHONY: help dev setup db api worker frontend up down logs lint format format-check fix typecheck check ci test test-x test-v test-s clean rag-phase-0 prompt-manager-serve sync-categories graph
 
 # Cores para output
 CYAN := \033[36m
@@ -13,11 +13,26 @@ PY := $(shell if [ -x .venv/bin/python ]; then echo .venv/bin/python; else comma
 help: ## Mostra esta mensagem de ajuda
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUso:\n  make $(CYAN)<comando>$(RESET)\n"} /^[a-zA-Z0-9_-]+:.*?##/ { printf "  $(CYAN)%-20s$(RESET) %s\n", $$1, $$2 } /^##@/ { printf "\n%s\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
+
 ##@ Setup
 setup: ## Cria .venv e instala dependências
 	uv venv
 	uv pip install -e ".[dev]"
 	uv pip install -e "./src/prompts_manager"
+
+
+##@ Desenvolvimento
+dev: ## Inicia LangGraph Studio
+	uv run langgraph dev
+
+db: ## Inicia apenas o PostgresSQL
+	docker compose up -d db		
+
+migrations: ## Executa todas as migrações (DB)
+	uv run python db/migrate.py
+
+sync-categories: ## Sincroniza categorias globais (categories.py → PostgreSQL)
+	uv run python -c "import asyncio; from src.shared.db_sync_categories import sync_categories; inserted = asyncio.run(sync_categories()); print(f'{inserted} categorias inseridas.')"
 
 
 ##@ Qualidade de Código
@@ -79,6 +94,7 @@ prompt-manager-serve: ## Inicia o servidor Flask do gerenciador de prompts
 	uv run python -m prompts_manager.src.main
 
 
-##@ Banco de Dados
-sync-categories: ## Sincroniza categorias globais (categories.py → PostgreSQL)
-	uv run python -c "from financial_agent.shared.db_sync_categories import sync_categories_from_env; inserted = sync_categories_from_env(); print(f'{inserted} categorias inseridas.')"
+##@ Agente
+graph: ## Imprime o grafo do agente em Mermaid (não executa nada)
+	uv run python -m financial_agent.agent.build_graph_workflow
+

@@ -13,7 +13,7 @@ def temp_prompts_dir(tmp_path):
 
 @pytest.fixture
 def patched_store(temp_prompts_dir, monkeypatch):
-    """Substitui PROMPTS_DIR, METADATA_FILE e inicializa o store com diretório temporário."""
+    """Substitui PROMPTS_DIR, METADATA_FILE e inicializa o store com dir temporário."""
     import prompts_manager.src.prompt_strore as store_module
 
     monkeypatch.setattr(store_module, "PROMPTS_DIR", temp_prompts_dir)

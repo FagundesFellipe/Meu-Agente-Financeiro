@@ -22,7 +22,8 @@ def _file_mtime_ns(path: Path) -> int:
 def _load_metadata_cached(mtime_ns: int) -> Metadata:
     """
     Carrega o metadata.
-    O mtime_ms faz parte da chave do cache. Quando o arquivo é alterado, uma nova entrada é criada
+    O mtime_ms faz parte da chave do cache. Quando o arquivo é alterado,
+    uma nova entrada é criada
     """
 
     return json.loads(_METADATA_PATH.read_text(encoding="utf-8"))
@@ -47,6 +48,28 @@ def _load_prompt_config_cached(
     del prompt_mtime_ns  # Usado apenas como chave do cache.
 
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def get_active_version(name: str) -> str:
+    """Retorna a versão ativa de um prompt, lendo apenas o metadata.
+
+    Reusa ``_load_metadata()`` que já tem cache por mtime — só relê
+    ``metadata.json`` do disco quando o arquivo foi alterado.
+
+    Args:
+        name: Nome do prompt (ex: ``"ADD_EXPENSES_SYSTEM_PROMPT"``).
+
+    Returns:
+        String da versão ativa (ex: ``"1.0.0"``).
+
+    Raises:
+        KeyError: Se o prompt não estiver registrado no metadata.
+    """
+    metadata = _load_metadata()
+    try:
+        return metadata["active_versions"][name]
+    except KeyError as exc:
+        raise KeyError(f"Prompt não encontrado no metadata: {name!r}") from exc
 
 
 def load_prompt_config(name: str) -> dict:

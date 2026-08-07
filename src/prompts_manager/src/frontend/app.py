@@ -38,8 +38,10 @@ def create_app() -> Flask:
         __name__,
         template_folder="templates",
     )
-    app.secret_key = settings.flask_secret_key
-    csrf = CSRFProtect(app)
+    secret = settings.flask_secret_key
+    app.secret_key = secret.get_secret_value() if secret else None
+
+    CSRFProtect(app)
 
     @app.context_processor
     def _inject_template_globals():
@@ -67,7 +69,8 @@ def create_app() -> Flask:
                 request.form["prompt_name"].strip(),
             ):
                 flash(
-                    "Nome de prompt inválido. Use apenas letras, números, hífens e underscores.",
+                    "Nome de prompt inválido. "
+                    "Use apenas letras, números, hífens e underscores.",
                     "error",
                 )
                 return redirect(url_for("index"))

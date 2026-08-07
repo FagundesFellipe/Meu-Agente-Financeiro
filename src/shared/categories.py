@@ -41,8 +41,8 @@ GLOBAL_CATEGORIES: tuple[Category, ...] = (
         name="Transporte",
         normalized_name="transporte",
         description=(
-            "Combustível, transporte público, aplicativos de corrida (e.g: Uber, 99, Itacar), "
-            "estacionamento e manutenção do veículo"
+            "Combustível, transporte público, aplicativos de corrida "
+            "(e.g: Uber, 99, Itacar), estacionamento e manutenção do veículo"
         ),
     ),
     Category(
@@ -85,7 +85,7 @@ GLOBAL_CATEGORIES: tuple[Category, ...] = (
         name="Dívidas e financiamentos",
         normalized_name="dividas_e_financiamentos",
         description=(
-            "Empréstimos, financiamento de veículo, " "crédito pessoal e parcelamentos"
+            "Empréstimos, financiamento de veículo, crédito pessoal e parcelamentos"
         ),
     ),
     Category(
@@ -112,7 +112,7 @@ GLOBAL_CATEGORIES: tuple[Category, ...] = (
         name="Família e filhos",
         normalized_name="familia_e_filhos",
         description=(
-            "Creche, babá, atividades infantis, " "mesada e despesas com dependentes"
+            "Creche, babá, atividades infantis, mesada e despesas com dependentes"
         ),
     ),
     Category(
@@ -127,7 +127,7 @@ GLOBAL_CATEGORIES: tuple[Category, ...] = (
         name="Roupas e acessórios",
         normalized_name="roupas_e_acessorios",
         description=(
-            "Vestuário, calçados, bolsas, joias, " "bijuterias e acessórios pessoais"
+            "Vestuário, calçados, bolsas, joias, bijuterias e acessórios pessoais"
         ),
     ),
     Category(

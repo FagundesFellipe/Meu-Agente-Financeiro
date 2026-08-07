@@ -91,7 +91,7 @@ def list_prompts() -> list[str]:
 
 
 def list_versions(prompt_name: str) -> list[str]:
-    """Retorna todas as versões disponíveis de um prompt, ordenadas da mais antiga para a mais nova.
+    """Retorna as versões disponíveis de um prompt, da mais antiga para a mais nova.
 
     Arquivos JSON cujo nome é ``"metadatajson"`` (sem ponto) são excluídos.
     """
@@ -255,7 +255,7 @@ def deprecate_version(prompt_name: str, version: str) -> bool:
     """Marca uma versão como deprecated sem alterar a versão ativa.
 
     A versão atualmente ativa não pode ser depreciada diretamente.
-    Retorna ``True`` em caso de sucesso, ``False`` se a versão não existir ou estiver ativa.
+    Retorna ``True`` em caso de sucesso, ``False`` se não existir ou estiver ativa.
     """
     ensure_prompts_dir()
 
