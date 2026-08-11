@@ -35,6 +35,7 @@ class ModelId(StrEnum):
     """
 
     # --- OpenAI ---
+    GPT_5_6_LUNA = "openai/gpt-5.6-luna"
     GPT_5_4_NANO = "openai/gpt-5.4-nano"
     GPT_5_4_MINI = "openai/gpt-5.4-mini"
     GPT_5_4 = "openai/gpt-5.4"

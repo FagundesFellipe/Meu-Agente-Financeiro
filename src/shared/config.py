@@ -77,13 +77,20 @@ class Settings(BaseSettings):
     db_pool_max_size: int = 10
     db_pool_open_timeout: float = 10.0
 
-    # --- Agente ---
+    # --- AGENT ---
     default_timezone: str = "America/Sao_Paulo"
     fallback_category_name: str = "Outros gastos"
 
     # --- LLM Rate Limit ---
     llm_rate_limit_requests_per_second: float = 0.5
     llm_rate_limit_max_burst: int = 10
+
+    # --- TRIM ---
+    # Mantém os N turnos mais recentes, descarta os antigos.
+    # Um turno = 1 HumanMessage + todas as respostas (AI, tools, etc).
+    # Custo: zero (sem chamada LLM extra)
+    trim_keep_tuns: int = 3
+    trim_keep_tuns_node: int = 5
 
 
 settings = Settings()

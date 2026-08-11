@@ -29,6 +29,8 @@ _RELATIVE_DAYS: dict[str, int] = {
     "hoje": 0,
     "agora": 0,
     "ontem": -1,
+    "anti ontem": -2,
+    "ante ontem": -2,
     "anteontem": -2,
     "antes de ontem": -2,
     "antiontem": -2,

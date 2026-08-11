@@ -246,7 +246,9 @@ def resolve_extracted_expenses(
 async def _extract(state: GraphState, context: SystemMessage) -> AddExpensesResult:
     agent = build_add_expenses_agent()
     try:
-        result = await agent.ainvoke({"messages": [context, *state["messages"]]})
+        last_message = state["messages"][-1]
+
+        result = await agent.ainvoke({"messages": [context, last_message]})
         return cast(AddExpensesResult, result["structured_response"])
     except Exception:
         logger.exception("llm_extraction_failed", user_id=state.get("user_id"))

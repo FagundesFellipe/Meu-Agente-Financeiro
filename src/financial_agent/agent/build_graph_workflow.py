@@ -11,8 +11,13 @@ import structlog
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel
 
+from financial_agent.agent.middleware.trim import (
+    create_trim_node,
+    trim_messages_by_turns,
+)
 from financial_agent.agent.ReAct.add_new_expenses_agent import add_new_expenses
 from financial_agent.agent.state_graph import GraphState, InputState, Intentions
+from shared.config import settings
 from shared.llm import create_chat_model, get_model_id
 from shared.prompt_loader import load_prompt_config
 from shared.repositories.users import ensure_user
@@ -71,12 +76,16 @@ async def llm_call_router(state: GraphState) -> dict:
         reasoning_effort=prompt_config.get("llm_reasoning_effort"),
     ).with_structured_output(RouteIntention)
 
+    trimmed_messages = trim_messages_by_turns(
+        state["messages"], keep_turns=settings.trim_keep_tuns
+    )
+
     result = cast(
         RouteIntention,
         await llm.ainvoke(
             [
                 {"role": "system", "content": prompt_config["prompt_content"]},
-                *state["messages"],
+                *trimmed_messages,
             ]
         ),
     )
@@ -129,6 +138,9 @@ def build_workflow() -> StateGraph:
     builder.add_node("greeting_agent", greeting_agent)
     builder.add_node("undefined_agent", undefined_agent)
     builder.add_node("finalize_response", finalize_response)
+    builder.add_node(
+        "trim_messages", create_trim_node(keep_turns=settings.trim_keep_tuns_node)
+    )
 
     builder.add_edge(START, "ensure_user_node")
     builder.add_edge("ensure_user_node", "llm_call_router")
@@ -153,14 +165,20 @@ def build_workflow() -> StateGraph:
     ):
         builder.add_edge(node, "finalize_response")
 
-    builder.add_edge("finalize_response", END)
+    builder.add_edge("finalize_response", "trim_messages")
+    builder.add_edge("trim_messages", END)
 
     return builder
 
 
 def graph():
     """Compila o grafo pronto para execução pelo worker."""
-    return build_workflow().compile()
+
+    from langgraph.checkpoint.memory import MemorySaver
+
+    checkpointer = MemorySaver()
+
+    return build_workflow().compile(checkpointer=checkpointer)
 
 
 if __name__ == "__main__":  # pragma: no cover - utilitário de inspeção manual
