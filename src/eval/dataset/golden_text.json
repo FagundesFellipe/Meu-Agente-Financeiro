@@ -1,0 +1,77 @@
+[
+  {
+    "name": "cumprimento-inicial",
+    "input": "Oi",
+    "expected_output": "Oi! Sou seu assistente financeiro. Me conte um gasto que eu registro para você, por exemplo: \"gastei 35 no almoço\"."
+  },
+  {
+    "name": "gasto-simples-confirmacao",
+    "input": "Gastei 35 reais no almoço",
+    "expected_output": "Anotado: almoço — R$ 35,00 (Alimentação)."
+  },
+  {
+    "name": "gasto-parcelado-confirmacao",
+    "input": "Comprei um fone de 300 em 3x",
+    "expected_output": "Anotei estes gastos:\n• fone (1/3) — R$ 100,00 (Compras)\n• fone (2/3) — R$ 100,00 (Compras)\n• fone (3/3) — R$ 100,00 (Compras)\nTotal: R$ 300,00"
+  },
+  {
+    "name": "multiplos-gastos-confirmacao",
+    "input": "Gastei 25 no café e 40 no táxi",
+    "expected_output": "Anotei estes gastos:\n• café — R$ 25,00 (Alimentação)\n• táxi — R$ 40,00 (Transporte)\nTotal: R$ 65,00"
+  },
+  {
+    "name": "gasto-sem-valor-clarificacao",
+    "input": "Gastei no almoço hoje",
+    "expected_output": "Qual foi o valor exato de \"almoço\"?"
+  },
+  {
+    "name": "gasto-fora-de-escopo",
+    "input": "Como faço para investir em criptomoedas?",
+    "expected_output": "Essa funcionalidade ainda está em construção. Por enquanto eu consigo registrar seus gastos — é só me dizer o que você gastou e quanto."
+  },
+  {
+    "name": "pedido-relatorio",
+    "input": "Quanto eu gastei esse mês?",
+    "expected_output": "Essa funcionalidade ainda está em construção. Por enquanto eu consigo registrar seus gastos — é só me dizer o que você gastou e quanto."
+  },
+  {
+    "name": "gasto-supermercado-confirmacao",
+    "input": "Fiz compras no mercado, deu 287,33",
+    "expected_output": "Anotado: compras no mercado — R$ 287,33 (Supermercado)."
+  },
+  {
+    "name": "gasto-categoria-ambigua",
+    "input": "Gastei 100 reais com coisas da casa",
+    "expected_output": "Anotado: coisas da casa — R$ 100,00 (Moradia)."
+  },
+  {
+    "name": "gasto-com-data-confirmacao",
+    "input": "No dia 10/08 gastei 150 reais com academia",
+    "expected_output": "Anotado: academia — R$ 150,00 (Saúde e bem-estar)."
+  },
+  {
+    "name": "gasto-cartao-credito",
+    "input": "Comprei um tênis de 320 no cartão de crédito",
+    "expected_output": "Anotado: tênis — R$ 320,00 (Roupas e acessórios)."
+  },
+  {
+    "name": "gasto-ambigu-sem-descricao",
+    "input": "Gastei 50 reais",
+    "expected_output": "Qual foi o valor exato de \"gasto\"?"
+  },
+  {
+    "name": "cumprimento-bom-dia",
+    "input": "Bom dia, tudo bem?",
+    "expected_output": "Oi! Sou seu assistente financeiro. Me conte um gasto que eu registro para você, por exemplo: \"gastei 35 no almoço\"."
+  },
+  {
+    "name": "gasto-streaming-confirmacao",
+    "input": "Assinatura do Netflix de 39,90",
+    "expected_output": "Anotado: Netflix — R$ 39,90 (Assinaturas e Streaming)."
+  },
+  {
+    "name": "gasto-multiplo-com-um-ambigu",
+    "input": "Gastei 30 no pão e uma coisa que não lembro o valor",
+    "expected_output": "Anotei estes gastos:\n• pão — R$ 30,00 (Alimentação)\n\nQual foi o valor exato de \"coisa que não lembro\"?"
+  }
+]
