@@ -318,6 +318,8 @@ async def add_new_expenses(state: GraphState) -> dict:
 
     return {
         "extracted_expenses": extraction.expenses,
+        "needs_clarification": extraction.needs_clarification,
+        "clarification_message": extraction.clarification_message,
         "expense_details": outcome.expenses,
         "response_text": response_text,
     }

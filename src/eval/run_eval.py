@@ -1,7 +1,10 @@
 import asyncio
 import json
 import os
+import warnings
 from pathlib import Path
+
+warnings.filterwarnings("ignore")
 
 from deepeval import evaluate
 from deepeval.dataset import Golden
@@ -13,7 +16,6 @@ from eval.helper_agent import helper_agent_json
 from eval.json_correctness_metric import (
     build_correctness_metrics,
     build_json_correctness_metric,
-    build_value_correctness_metric,
 )
 
 DATASET = Path("src/eval/dataset/golden.json")
@@ -27,6 +29,7 @@ def load_golden_dataset() -> list[Golden]:
 async def build_tests_cases(golden_dataset: list[Golden]) -> list[LLMTestCase]:
     tests = []
     for record in golden_dataset:
+        print(f"Running: {record.name} -> {record.input!r}")
         actual_output = await helper_agent_json(record.input)
         tests.append(
             LLMTestCase(
@@ -46,12 +49,11 @@ async def main() -> None:
     golden_dataset = load_golden_dataset()
     tests_cases = await build_tests_cases(golden_dataset)
     metric_json = build_json_correctness_metric()
-    metric_value = build_value_correctness_metric()
-    _ = build_correctness_metrics()
+    metric_geval = build_correctness_metrics()
 
     eval_result = evaluate(
         test_cases=tests_cases,
-        metrics=[metric_json, metric_value],
+        metrics=[metric_json, metric_geval],
         async_config=AsyncConfig(
             run_async=True,
             max_concurrent=5,
@@ -65,6 +67,7 @@ async def main() -> None:
             show_indicator=True,
             print_results=True,
             verbose_mode=True,
+            file_type="md",
             file_output_dir=os.getenv("RESULTS_FOLDER", "./evals"),
         ),
         error_config=ErrorConfig(

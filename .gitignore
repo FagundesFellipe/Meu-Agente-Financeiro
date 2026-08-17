@@ -50,3 +50,7 @@ opencode.json
 
 # LANGCHAIN/LANGGRAPH
 .langgraph_api
+
+#EVAL
+.deepeval
+/evals
