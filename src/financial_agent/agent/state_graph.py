@@ -187,6 +187,8 @@ class GraphState(TypedDict):
     message_id: NotRequired[str | None]
     intention: NotRequired[Intentions]
     extracted_expenses: NotRequired[list[ExtractedExpense]]
+    needs_clarification: NotRequired[bool]
+    clarification_message: NotRequired[str | None]
     expense_details: NotRequired[list[ExpenseDetails]]
     recurring_monthly_expenses: NotRequired[RecurringExpense | None]
     response_text: NotRequired[str | None]

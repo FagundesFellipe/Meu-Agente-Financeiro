@@ -19,6 +19,7 @@ dependencies = [
     "ipython>=9.16.0",
     "httpx>=0.28.1",
     "python-multipart>=0.0.32",
+    "deepeval==4.1.7",
 ]
 
 [dependency-groups]
