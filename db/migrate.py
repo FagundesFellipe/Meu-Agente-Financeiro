@@ -12,6 +12,7 @@ Requer a variável DATABASE_URL configurada (via .env ou env var).
 """
 )
 
+import asyncio
 import os
 import sys
 from pathlib import Path
@@ -19,6 +20,8 @@ from pathlib import Path
 import psycopg
 import structlog
 from dotenv import load_dotenv
+
+from src.shared.db import connection
 
 logger = structlog.get_logger()
 
@@ -44,60 +47,78 @@ def _resolve_migrations_dir() -> Path:
 MIGRATIONS_DIR = _resolve_migrations_dir()
 
 
-def run_migrations(database_url: str) -> None:
+async def _ensure_migrations_table(conn) -> None:
+    """Cria a tabela de controle de migrações, se ainda não existir."""
+    await conn.execute("""
+        CREATE TABLE IF NOT EXISTS migrations (
+            id          SERIAL PRIMARY KEY,
+            name        TEXT NOT NULL UNIQUE,
+            applied_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    """)
+
+
+async def _list_applied_migrations(conn) -> set[str]:
+    """Retorna o conjunto de nomes de migrações já aplicadas."""
+    async with conn.cursor() as cur:
+        await cur.execute("SELECT name FROM migrations ORDER BY name")
+        rows = await cur.fetchall()
+    return {row["name"] for row in rows}
+
+
+async def _apply_migration(conn, sql_file: Path) -> None:
+    """Aplica um único arquivo SQL e registra na tabela migrations.
+
+    Deve ser chamado dentro de uma transação ativa.
+    """
+    sql = sql_file.read_text(encoding="utf-8")
+    await conn.execute(sql)
+    await conn.execute(
+        "INSERT INTO migrations (name) VALUES (%s)",
+        (sql_file.name,),
+    )
+
+
+async def run_migrations() -> None:
     """Aplica migrações SQL pendentes ao banco de dados.
 
-    Cria a tabela migrations se não existir, depois aplica cada arquivo
-    SQL que ainda não foi registrado, em ordem alfabética.
-
-    Args:
-        database_url: Connection string do PostgreSQL.
+    Cada arquivo é aplicado em uma transação independente: se uma falhar,
+    as anteriores já permanecem registradas.
     """
-    with psycopg.connect(database_url) as conn:
-        with conn.cursor() as cur:
-            # Garante que a tabela de controle existe
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS migrations (
-                    id          SERIAL PRIMARY KEY,
-                    name        TEXT NOT NULL UNIQUE,
-                    applied_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                )
-            """)
-            conn.commit()
+    async with connection() as conn:
+        async with conn.transaction():
+            await _ensure_migrations_table(conn)
 
-            cur.execute("SELECT name FROM migrations ORDER BY name")
-            applied = {row[0] for row in cur.fetchall()}
+    async with connection() as conn:
+        async with conn.transaction():
+            applied = await _list_applied_migrations(conn)
 
-            # Lê e aplica migrações pendentes em ordem
-            sql_files = sorted(MIGRATIONS_DIR.glob("*.sql"))
+    sql_files = sorted(MIGRATIONS_DIR.glob("*.sql"))
 
-            for sql_file in sql_files:
-                if sql_file.name in applied:
-                    logger.debug("migration_aplicada", migration=sql_file.name)
-                    continue
+    for sql_file in sql_files:
+        if sql_file.name in applied:
+            logger.debug("migration_ja_aplicada", migration=sql_file.name)
+            continue
 
-                logger.info("aplicando_migração", migration=sql_file.name)
-                sql = sql_file.read_text(encoding="utf-8")
+        logger.info("aplicando_migracao", migration=sql_file.name)
 
-                # Cada arquivo de migração é executado em uma transação
-                # atômica: se qualquer statement falhar, nada do arquivo
-                # é aplicado, e o registro em migrations também não.
-                cur.execute("BEGIN")
-                try:
-                    cur.execute(sql)
+        try:
+            async with connection() as conn:
+                async with conn.transaction():
+                    await _apply_migration(conn, sql_file)
 
-                    cur.execute(
-                        "INSERT INTO migrations (name) VALUES (%s)",
-                        (sql_file.name,),
-                    )
-                    cur.execute("COMMIT")
-                    logger.info("migração_aplicada", migration=sql_file.name)
-                except Exception:
-                    cur.execute("ROLLBACK")
-                    raise
+        except Exception as exc:
+            logger.error(
+                "falha_na_migracao",
+                migration=sql_file.name,
+                error=str(exc),
+            )
+            raise
+
+        logger.info("migracao_aplicada", migration=sql_file.name)
 
 
-def main() -> None:
+async def main() -> None:
     """Entry point do script de migração."""
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
@@ -110,7 +131,7 @@ def main() -> None:
 
     logger.info("Conectando ao banco de dados...")
     try:
-        run_migrations(database_url)
+        await run_migrations()
         logger.info("Migrações concluídas.")
     except psycopg.Error as e:
         logger.error(f"Erro ao aplicar migrações: {e}")
@@ -118,4 +139,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

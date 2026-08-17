@@ -10,7 +10,7 @@ logger = structlog.get_logger()
 
 
 def main() -> None:
-    if settings.flask_debug and settings.environment == "production":
+    if settings.flask_debug and settings.environment_prompt_manager == "production":
         raise RuntimeError("FLASK_DEBUG não pode ser True em produção")
 
     prompt_dir = os.environ.get("PROMPT_DIR", settings.prompt_dir)

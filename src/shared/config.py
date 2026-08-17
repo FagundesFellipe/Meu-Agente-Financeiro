@@ -26,7 +26,7 @@ def _configure_structlog() -> None:
     Em desenvolvimento local, usa formato colorido e legível.
     Em produção (``ENV=production``), usa JSON estruturado.
     """
-    is_production = os.environ.get("ENV", "").lower() == "production"
+    is_production = os.environ.get("ENVIRONMENT", "").lower() == "production"
 
     shared_processors = [
         structlog.contextvars.merge_contextvars,
@@ -57,13 +57,14 @@ def _configure_structlog() -> None:
         )
 
 
-_configure_structlog()
-
-
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
+
+    # --- ENVIRONMENT ---
+    environment: str = "development"
+    enable_sync_webhook: bool = False
 
     # --- LLM (OpenRouter) ---
     openrouter_api_key: SecretStr | None = None
@@ -78,6 +79,7 @@ class Settings(BaseSettings):
     db_pool_open_timeout: float = 10.0
 
     # --- AGENT ---
+    agent_id: str = "finantial_agent"
     default_timezone: str = "America/Sao_Paulo"
     fallback_category_name: str = "Outros gastos"
 
@@ -85,12 +87,29 @@ class Settings(BaseSettings):
     llm_rate_limit_requests_per_second: float = 0.5
     llm_rate_limit_max_burst: int = 10
 
+    # --- DEBOUNCE ---
+    message_buffer_seconds: float = 2.0
+
     # --- TRIM ---
     # Mantém os N turnos mais recentes, descarta os antigos.
     # Um turno = 1 HumanMessage + todas as respostas (AI, tools, etc).
     # Custo: zero (sem chamada LLM extra)
     trim_keep_tuns: int = 3
     trim_keep_tuns_node: int = 5
+
+    # --- TELEGRAM ---
+    telegram_bot_token: SecretStr | None = None
+    telegram_webhook_secret_token: str | None = None
+
+    # --- FASTAPI SERVER ---
+    port: int = 8000
+    cors_allowed_origins: str = "http://localhost:3000"
+
+    @property
+    def resolved_cors_allowed_origins(self) -> list[str]:
+        """Lista de origins CORS, parseada da string separada por vírgula."""
+        origins = self.cors_allowed_origins.split(",")
+        return [origin.strip() for origin in origins if origin.strip()]
 
 
 settings = Settings()

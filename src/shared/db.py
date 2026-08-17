@@ -27,6 +27,7 @@ from contextlib import asynccontextmanager
 from typing import cast
 
 import structlog
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from psycopg import AsyncConnection
 from psycopg.rows import DictRow, dict_row
 from psycopg_pool import AsyncConnectionPool
@@ -35,11 +36,10 @@ from shared.config import settings
 
 logger = structlog.get_logger()
 
-# Todas as conexões saem do pool com row_factory=dict_row; o alias abaixo faz o
-# type checker enxergar isso, já que a configuração vai por ``kwargs``.
 DictConnection = AsyncConnection[DictRow]
 
 _pool: "AsyncConnectionPool[DictConnection] | None" = None
+_checkpointer: AsyncPostgresSaver | None = None
 
 
 async def get_pool() -> "AsyncConnectionPool[DictConnection]":
@@ -73,6 +73,39 @@ async def close_pool() -> None:
         logger.info("db_pool_closed")
 
 
+async def get_checkpointer() -> AsyncPostgresSaver:
+    """Retorna o checkpointer do processo, criando-o na primeira chamada.
+
+    O checkpointer reusa o pool de conexões do processo. Diferente de
+    ``from_conn_string``, essa instância não fecha a conexão entre usos,
+    o que torna o grafo compilado utilizável durante todo o ciclo de vida
+    da aplicação.
+    """
+    global _checkpointer
+
+    if _checkpointer is None:
+        _checkpointer = AsyncPostgresSaver(conn=await get_pool()).with_allowlist(
+            [
+                ("financial_agent.agent.state_graph", "ExpenseDetails"),
+                ("financial_agent.agent.state_graph", "ExtractedExpense"),
+            ]
+        )
+        logger.info("checkpointer_created")
+    return _checkpointer
+
+
+async def close_checkpointer() -> None:
+    """Libera a referência ao checkpointer.
+
+    O pool subjacente é fechado separadamente por :func:`close_pool`.
+    """
+    global _checkpointer
+
+    if _checkpointer is not None:
+        _checkpointer = None
+        logger.info("checkpointer_closed")
+
+
 @asynccontextmanager
 async def user_connection(user_id: str) -> AsyncGenerator[DictConnection]:
     """Conexão com ``app.current_user_id`` definido para a transação.
@@ -101,6 +134,27 @@ async def connection() -> AsyncGenerator[DictConnection]:
     pool = await get_pool()
     async with pool.connection() as conn:
         yield conn
+
+
+@asynccontextmanager
+async def open_checkpointer() -> AsyncGenerator[AsyncPostgresSaver]:
+    """Fornece o checkpointer global do processo.
+
+    Mantido como context manager para compatibilidade com os pontos de uso
+    existentes; o checkpointer em si permanece aberto e reusável.
+    """
+    yield await get_checkpointer()
+
+
+async def bootstrap_langgraph_schema() -> None:
+    """Inicializa tabelas do checkpointer/store do LangGraph."""
+
+    logger.info(
+        "langgraph_schema_bootstrap_starting",
+    )
+
+    checkpointer = await get_checkpointer()
+    await checkpointer.setup()
 
 
 async def check_db_health() -> bool:

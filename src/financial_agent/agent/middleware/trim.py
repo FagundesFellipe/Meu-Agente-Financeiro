@@ -8,7 +8,7 @@ Dois usos, mesma lógica de contagem de turnos:
 
 2. ``create_trim_node`` — factory que devolve um nó do grafo. O nó retorna
    ``RemoveMessage`` para que o reducer ``add_messages`` apague as mensagens
-   antigas do checkpoint de verdade, mantendo o ``MemorySaver`` limitado.
+   antigas do checkpoint, mantendo o histórico limitado.
 
    Coloque no **final** do grafo (depois de ``finalize_response``) para que
    todos os nós anteriores vejam o estado completo e a limpeza aconteça só

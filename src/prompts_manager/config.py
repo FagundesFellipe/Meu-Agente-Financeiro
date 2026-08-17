@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     # ---- Environment ----
     # "development" (default) ou "production"
     # Em produção, o webhook sincrono (webhook/sync) é desabilitado
-    environment: str = "development"
+    environment_prompt_manager: str = "development"
 
     # --- Diretórios dos Prompts
     prompt_dir: str = "/src/financial_agent/agent/prompts"

@@ -34,6 +34,8 @@ migrations: ## Executa todas as migrações (DB)
 sync-categories: ## Sincroniza categorias globais (categories.py → PostgreSQL)
 	uv run python -c "import asyncio; from src.shared.db_sync_categories import sync_categories; inserted = asyncio.run(sync_categories()); print(f'{inserted} categorias inseridas.')"
 
+api: ## Roda API localmente (fora do docker)
+	uv run uvicorn financial_agent.server.main:app --reload --port 8000
 
 ##@ Qualidade de Código
 # Estes comandos verificam estilo e tipos, NÃO lógica.

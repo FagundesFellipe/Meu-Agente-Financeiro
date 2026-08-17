@@ -8,6 +8,7 @@ Para inspecionar o desenho ou fazer um teste manual, use ``make graph`` ou
 from typing import cast
 
 import structlog
+from langchain_core.messages import AIMessage
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel
 
@@ -18,6 +19,7 @@ from financial_agent.agent.middleware.trim import (
 from financial_agent.agent.ReAct.add_new_expenses_agent import add_new_expenses
 from financial_agent.agent.state_graph import GraphState, InputState, Intentions
 from shared.config import settings
+from shared.db import open_checkpointer
 from shared.llm import create_chat_model, get_model_id
 from shared.prompt_loader import load_prompt_config
 from shared.repositories.users import ensure_user
@@ -57,11 +59,15 @@ async def ensure_user_node(state: GraphState) -> dict:
 
 
 async def finalize_response(state: GraphState) -> dict:
-    """Prefixa a boas-vindas na primeira resposta da vida do usuário."""
+    """Prefixa a boas-vindas na primeira resposta e a adiciona como AIMessage."""
     response_text = state.get("response_text")
-    if state.get("is_new_user") and response_text:
-        return {"response_text": f"{_WELCOME_PREFIX}\n\n{response_text}"}
-    return {"response_text": response_text}
+    if response_text and state.get("is_new_user"):
+        response_text = f"{_WELCOME_PREFIX}\n\n{response_text}"
+
+    if response_text is None:
+        response_text = _NOT_IMPLEMENTED_YET
+
+    return {"messages": [AIMessage(content=response_text)]}
 
 
 async def llm_call_router(state: GraphState) -> dict:
@@ -171,15 +177,14 @@ def build_workflow() -> StateGraph:
     return builder
 
 
-def graph():
+async def graph():
     """Compila o grafo pronto para execução pelo worker."""
 
-    from langgraph.checkpoint.memory import MemorySaver
-
-    checkpointer = MemorySaver()
-
-    return build_workflow().compile(checkpointer=checkpointer)
+    async with open_checkpointer() as checkpointer:
+        return build_workflow().compile(checkpointer=checkpointer)
 
 
 if __name__ == "__main__":  # pragma: no cover - utilitário de inspeção manual
-    logger.debug(graph().get_graph().draw_mermaid())
+    import asyncio
+
+    logger.debug(asyncio.run(graph()).get_graph().draw_mermaid())
