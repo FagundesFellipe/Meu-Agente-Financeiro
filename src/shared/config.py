@@ -90,6 +90,10 @@ class Settings(BaseSettings):
     # --- DEBOUNCE ---
     message_buffer_seconds: float = 2.0
 
+    # --- WORKER ---
+    poll_interval_seconds: float = 2.0
+    lease_seconds: int = 60
+
     # --- TRIM ---
     # Mantém os N turnos mais recentes, descarta os antigos.
     # Um turno = 1 HumanMessage + todas as respostas (AI, tools, etc).
@@ -104,12 +108,30 @@ class Settings(BaseSettings):
     # --- FASTAPI SERVER ---
     port: int = 8000
     cors_allowed_origins: str = "http://localhost:3000"
+    rate_limit_per_hour: int = 30
+
+    # --- TWILIO ---
+    validate_twilio_signature: bool = False
+    twilio_auth_token: str = ""
+    twilio_webhook_url: str = ""
+
+    # Devenvolvimento = "mock" - Produção = "real"
+    twilio_outbound_mode: str = "mock"
+    twilio_account_sid: str = ""
+    twilio_api_key_sid: str = ""
+    twilio_api_key_secret: str = ""
+    twilio_from_number: str = ""
 
     @property
     def resolved_cors_allowed_origins(self) -> list[str]:
         """Lista de origins CORS, parseada da string separada por vírgula."""
         origins = self.cors_allowed_origins.split(",")
         return [origin.strip() for origin in origins if origin.strip()]
+
+    @property
+    def resolved_twilio_outbound_mode(self) -> str:
+        """``twilio_outbound_mode`` com fallback para ``"real"`` quando vazio."""
+        return self.twilio_outbound_mode or "real"
 
 
 settings = Settings()

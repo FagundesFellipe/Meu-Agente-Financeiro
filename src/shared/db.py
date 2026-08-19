@@ -53,7 +53,7 @@ async def get_pool() -> "AsyncConnectionPool[DictConnection]":
                 conninfo=settings.database_url,
                 min_size=settings.db_pool_min_size,
                 max_size=settings.db_pool_max_size,
-                kwargs={"row_factory": dict_row},
+                kwargs={"row_factory": dict_row, "autocommit": True},
                 open=False,
             ),
         )

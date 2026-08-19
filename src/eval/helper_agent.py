@@ -5,7 +5,7 @@ from financial_agent.agent.state_graph import AddExpensesResult, InputState
 
 
 async def helper_agent_json(input: str) -> str:
-    graph = Graph()
+    graph = await Graph()
     result = await graph.ainvoke(
         InputState(
             channel="telegram",

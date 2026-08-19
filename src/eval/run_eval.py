@@ -29,7 +29,6 @@ def load_golden_dataset() -> list[Golden]:
 async def build_tests_cases(golden_dataset: list[Golden]) -> list[LLMTestCase]:
     tests = []
     for record in golden_dataset:
-        print(f"Running: {record.name} -> {record.input!r}")
         actual_output = await helper_agent_json(record.input)
         tests.append(
             LLMTestCase(
@@ -68,7 +67,7 @@ async def main() -> None:
             print_results=True,
             verbose_mode=True,
             file_type="md",
-            file_output_dir=os.getenv("RESULTS_FOLDER", "./evals"),
+            file_output_dir=os.getenv("DEEPEVAL_RESULTS_FOLDER", "./evals"),
         ),
         error_config=ErrorConfig(
             ignore_errors=False,

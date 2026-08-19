@@ -37,10 +37,11 @@ class MessageQueue(BaseModel):
     O Worker consome mensagens com status 'queued' e as processa.
     """
 
-    id: int
+    id: UUID
     message_id: str | None = None
     phone_number: str = Field(description="Formato E.164, ex: +5511999999999")
     to_number: str | None = None
+    channel: str = Field(description="Canal de origem: telegram ou whatsapp")
     agent_id: str = Field(description="Identificador do agente em langgraph.json")
     thread_id: str = Field(description="ID do thread para checkpointer: phone:agent_id")
     incoming_message: str

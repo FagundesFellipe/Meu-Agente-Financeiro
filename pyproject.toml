@@ -20,6 +20,7 @@ dependencies = [
     "httpx>=0.28.1",
     "python-multipart>=0.0.32",
     "deepeval==4.1.7",
+    "twilio==9.10.2",
 ]
 
 [dependency-groups]

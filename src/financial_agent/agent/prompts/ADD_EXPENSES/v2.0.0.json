@@ -8,5 +8,5 @@
   "owner": "Fellipe Fagundes",
   "change_note": "Adicionado o campo `amount_is_total` ao modelo de extração (ExtractedExpense). O LLM agora classifica se o valor informado pelo usuário é o total da compra ou o valor de cada parcela, em vez de pedir esclarecimento ou fazer a divisão.",
   "created_at": "2026-08-07T17:04:47.085352+00:00",
-  "status": "active"
+  "status": "deprecated"
 }

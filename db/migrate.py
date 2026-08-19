@@ -21,7 +21,7 @@ import psycopg
 import structlog
 from dotenv import load_dotenv
 
-from src.shared.db import connection
+from shared.db import connection
 
 logger = structlog.get_logger()
 

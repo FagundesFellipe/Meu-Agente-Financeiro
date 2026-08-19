@@ -25,7 +25,7 @@ logger = structlog.get_logger()
 
 Channel = Literal["telegram", "whatsapp"]
 
-_DEBOUNCEABLE_FILTER = "(media_url IS NULL OR media_type LIKE 'audio/%')"
+_DEBOUNCEABLE_FILTER = "(media_url IS NULL OR media_type LIKE 'audio/%%')"
 
 
 def _thread_id(channel: Channel, phone_number: str, agent_id: str) -> str:
@@ -102,7 +102,7 @@ async def enqueue_or_buffer(
                       AND process_after > NOW()
                       AND {_DEBOUNCEABLE_FILTER}
                     """,
-                    (phone_number, agent_id),
+                    (phone_number, channel),
                 )
                 if flushed.rowcount and flushed.rowcount > 0:
                     logger.info(
@@ -116,16 +116,17 @@ async def enqueue_or_buffer(
                 cursor = await conn.execute(
                     """
                     INSERT INTO message_queue
-                        (message_id, phone_number, to_number, agent_id,
+                        (message_id, phone_number, to_number, channel, agent_id,
                          thread_id, incoming_message, media_url, media_type,
                          process_after)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                     RETURNING id
                     """,
                     (
                         message_id,
                         phone_number,
                         to_number,
+                        channel,
                         agent_id,
                         thread_id,
                         body,
@@ -209,15 +210,16 @@ async def enqueue_or_buffer(
             cursor = await conn.execute(
                 """
                 INSERT INTO message_queue
-                    (message_id, phone_number, to_number, agent_id, thread_id,
-                     incoming_message, media_url, media_type, process_after)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    (message_id, phone_number, to_number, channel, agent_id,
+                     thread_id, incoming_message, media_url, media_type, process_after)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
                 (
                     message_id,
                     phone_number,
                     to_number,
+                    channel,
                     agent_id,
                     thread_id,
                     body,
@@ -240,7 +242,7 @@ async def enqueue_or_buffer(
             return EnqueueResult(message_id=new_id, is_buffered=False)
 
 
-async def claim_next(lease_seconds: int = 60) -> MessageQueue:
+async def claim_next(lease_seconds: int = 60) -> MessageQueue | None:
     """Busca e reserva a próxima mensagem pronta para o processamento
 
     Usa FOR UPDATE SKIP LOCKED para concorrência segura entre múltiplos workers.
@@ -293,7 +295,8 @@ async def claim_next(lease_seconds: int = 60) -> MessageQueue:
                     LIMIT 1
                     FOR UPDATE SKIP LOCKED
                 )
-                RETURNING id, message_id, phone_number, to_number, agent_id, thread_id,
+                RETURNING id, message_id, phone_number, to_number, channel,
+                          agent_id, thread_id,
                           incoming_message, media_url, media_type,
                           normalized_input,
                           media_processing_status,
@@ -305,13 +308,16 @@ async def claim_next(lease_seconds: int = 60) -> MessageQueue:
                 (lease_until,),
             )
             row = await cursor.fetchone()
-            assert row is not None
+
+            if row is None:
+                return None
 
             message = MessageQueue(
                 id=row["id"],
                 message_id=row["message_id"],
                 phone_number=row["phone_number"],
                 to_number=row["to_number"],
+                channel=row["channel"],
                 agent_id=row["agent_id"],
                 thread_id=row["thread_id"],
                 incoming_message=row["incoming_message"],
@@ -470,7 +476,8 @@ async def upsert_conversation(
                     phone_number, agent_id, thread_id,
                     last_message, last_message_at, message_count)
                 VALUES (%s, %s, %s, %s, NOW(), 1)
-                ON CONFLICT (phone_number, agent_id) DO UPDATE SET
+                ON CONFLICT (phone_number, agent_id) WHERE user_id IS NULL
+                DO UPDATE SET
                     last_message = EXCLUDED.last_message,
                     last_message_at = NOW(),
                     message_count = conversations.message_count + 1,

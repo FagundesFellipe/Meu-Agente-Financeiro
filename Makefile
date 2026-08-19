@@ -37,6 +37,13 @@ sync-categories: ## Sincroniza categorias globais (categories.py → PostgreSQL)
 api: ## Roda API localmente (fora do docker)
 	uv run uvicorn financial_agent.server.main:app --reload --port 8000
 
+worker: ## Roda o worker localmente fora do docker
+	uv run python -m financial_agent.worker.main
+
+##@ Evals
+run-evals: ## Executa evals configurados
+	uv run python src/eval/run_eval.py	
+
 ##@ Qualidade de Código
 # Estes comandos verificam estilo e tipos, NÃO lógica.
 # Para testar lógica, use: make test

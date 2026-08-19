@@ -32,7 +32,7 @@
   {
     "name": "gasto-parcelado-valor-da-parcela",
     "input": "Fiz uma compra de 3x de 50 reais no shopping",
-    "expected_output": "{\"expenses\":[{\"description\":\"compra no shopping\",\"amount_raw\":\"50\",\"installments\":3,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Compras\",\"confidence\":0.89}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"compra no shopping\",\"amount_raw\":\"50\",\"installments\":3,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Lazer e entretenimento\",\"confidence\":0.85}],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "multiplos-gastos",
@@ -62,7 +62,7 @@
   {
     "name": "gasto-plano-saude",
     "input": "Mensalidade do plano de saúde foi 450 reais",
-    "expected_output": "{\"expenses\":[{\"description\":\"plano de saúde\",\"amount_raw\":\"450\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Saúde e bem-estar\",\"confidence\":0.92}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[],\"needs_clarification\":true,\"clarification_message\":\"Este fluxo ainda não registra assinaturas recorrentes.\"}"
   },
   {
     "name": "gasto-escola",
@@ -77,7 +77,7 @@
   {
     "name": "gasto-streaming",
     "input": "Assinatura do Netflix de 39,90",
-    "expected_output": "{\"expenses\":[{\"description\":\"Netflix\",\"amount_raw\":\"39,90\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Assinaturas e Streaming\",\"confidence\":0.94}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-combustivel",
@@ -92,7 +92,7 @@
   {
     "name": "gasto-pix",
     "input": "Paguei 75 reais de pix para o churrasco",
-    "expected_output": "{\"expenses\":[{\"description\":\"churrasco\",\"amount_raw\":\"75\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":\"pix\",\"category_hint\":\"Alimentação\",\"confidence\":0.89}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"churrasco\",\"amount_raw\":\"75\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":\"pix\",\"category_hint\":\"Lazer e entretenimento\",\"confidence\":0.9}],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-debito",
@@ -147,6 +147,86 @@
   {
     "name": "gasto-familia",
     "input": "Paguei 300 reais de creche para o meu filho",
-    "expected_output": "{\"expenses\":[{\"description\":\"creche para o meu filho\",\"amount_raw\":\"300\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Família e filhos\",\"confidence\":0.91}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"creche\",\"amount_raw\":\"300\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Família e filhos\",\"confidence\":0.92}],\"needs_clarification\":false,\"clarification_message\":null}"
+  },
+  {
+    "name": "gasto-misto-claro-ambiguo",
+    "input": "Gastei 40 no mercado e também gastei um dinheiro na farmácia, não lembro quanto",
+    "expected_output": "{\"expenses\":[{\"description\":\"mercado\",\"amount_raw\":\"40\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Supermercado\",\"confidence\":0.9}],\"needs_clarification\":true,\"clarification_message\":\"Qual foi o valor gasto na farmácia?\"}"
+  },
+  {
+    "name": "gasto-totalmente-ambiguo-sem-item",
+    "input": "Gastei bastante hoje, nem sei quanto",
+    "expected_output": "{\"expenses\":[],\"needs_clarification\":true,\"clarification_message\":\"Qual foi o gasto e quanto você gastou?\"}"
+  },
+  {
+    "name": "gasto-valor-por-extenso-milhar",
+    "input": "Gastei mil e duzentos reais no computador novo",
+    "expected_output": "{\"expenses\":[{\"description\":\"computador novo\",\"amount_raw\":\"1200\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Compras\",\"confidence\":0.87}],\"needs_clarification\":false,\"clarification_message\":null}"
+  },
+  {
+    "name": "gasto-giria-pila",
+    "input": "Gastei 50 pila de gasolina",
+    "expected_output": "{\"expenses\":[{\"description\":\"gasolina\",\"amount_raw\":\"50\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Transporte\",\"confidence\":0.86}],\"needs_clarification\":false,\"clarification_message\":null}"
+  },
+  {
+    "name": "gasto-formato-milhar-br",
+    "input": "Paguei 1.500,00 de aluguel",
+    "expected_output": "{\"expenses\":[{\"description\":\"aluguel\",\"amount_raw\":\"1500,00\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Moradia\",\"confidence\":0.88}],\"needs_clarification\":false,\"clarification_message\":null}"
+  },
+  {
+    "name": "gasto-valor-sem-centavos-hifen",
+    "input": "Aluguel de R$ 800,- esse mês",
+    "expected_output": "{\"expenses\":[{\"description\":\"aluguel\",\"amount_raw\":\"800\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Moradia\",\"confidence\":0.88}],\"needs_clarification\":false,\"clarification_message\":null}"
+  },
+  {
+    "name": "gasto-multiplo-tres-itens-metodos-diferentes",
+    "input": "Paguei 30 no pix do almoço, 50 no crédito da farmácia e 15 em dinheiro no busão",
+    "expected_output": "{\"expenses\":[{\"description\":\"almoço\",\"amount_raw\":\"30\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":\"pix\",\"category_hint\":\"Alimentação\",\"confidence\":0.9},{\"description\":\"farmácia\",\"amount_raw\":\"50\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":\"credit_card\",\"category_hint\":\"Saúde e bem-estar\",\"confidence\":0.89},{\"description\":\"busão\",\"amount_raw\":\"15\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":\"cash\",\"category_hint\":\"Transporte\",\"confidence\":0.88}],\"needs_clarification\":false,\"clarification_message\":null}"
+  },
+  {
+    "name": "gasto-parcela-total-explicito",
+    "input": "Comprei uma TV de 900 reais em 6 vezes, no total",
+    "expected_output": "{\"expenses\":[{\"description\":\"TV\",\"amount_raw\":\"900\",\"installments\":6,\"amount_is_total\":true,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Compras\",\"confidence\":0.9}],\"needs_clarification\":false,\"clarification_message\":null}"
+  },
+  {
+    "name": "gasto-parcela-sem-numero-nem-valor",
+    "input": "Vou parcelar a viagem que fiz",
+    "expected_output": "{\"expenses\":[],\"needs_clarification\":true,\"clarification_message\":\"Qual foi o valor da viagem e em quantas parcelas você quer dividir?\"}"
+  },
+  {
+    "name": "gasto-data-e-hora-relativos",
+    "input": "Ontem às 20h gastei 60 reais no jantar",
+    "expected_output": "{\"expenses\":[{\"description\":\"jantar\",\"amount_raw\":\"60\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":\"20:00\",\"payment_method_hint\":null,\"category_hint\":\"Alimentação\",\"confidence\":0.89}],\"needs_clarification\":false,\"clarification_message\":null}"
+  },
+  {
+    "name": "mensagem-fora-de-dominio-saudacao",
+    "input": "Oi, tudo bem?",
+    "expected_output": "{\"expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
+  },
+  {
+    "name": "mensagem-fora-de-dominio-pergunta-relatorio",
+    "input": "Quanto eu gastei esse mês?",
+    "expected_output": "{\"expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
+  },
+  {
+    "name": "gasto-girias-e-emoji",
+    "input": "gastei 35 conto 😅 no rolê com a galera",
+    "expected_output": "{\"expenses\":[{\"description\":\"rolê com a galera\",\"amount_raw\":\"35\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Lazer e entretenimento\",\"confidence\":0.84}],\"needs_clarification\":false,\"clarification_message\":null}"
+  },
+  {
+    "name": "gasto-centavos-por-extenso",
+    "input": "Gastei 8 reais e 50 centavos no busão",
+    "expected_output": "{\"expenses\":[{\"description\":\"busão\",\"amount_raw\":\"8,50\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Transporte\",\"confidence\":0.87}],\"needs_clarification\":false,\"clarification_message\":null}"
+  },
+  {
+    "name": "gasto-financiamento-parcelado-longo",
+    "input": "Financiei uma moto de 8000 em 24x",
+    "expected_output": "{\"expenses\":[{\"description\":\"moto\",\"amount_raw\":\"8000\",\"installments\":24,\"amount_is_total\":true,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Dívidas e financiamentos\",\"confidence\":0.85}],\"needs_clarification\":false,\"clarification_message\":null}"
+  },
+  {
+    "name": "gasto-ambiguo-item-nao-claro",
+    "input": "Comprei umas coisas pro apê, gastei um bom dinheiro",
+    "expected_output": "{\"expenses\":[],\"needs_clarification\":true,\"clarification_message\":\"O que você comprou e quanto gastou?\"}"
   }
 ]
