@@ -5,23 +5,27 @@ Para inspecionar o desenho ou fazer um teste manual, use ``make graph`` ou
 ``python -m financial_agent.agent.build_graph_workflow``.
 """
 
-from typing import cast
+from typing import Literal, cast
 
 import structlog
+from langchain.agents.structured_output import ToolStrategy
 from langchain_core.messages import AIMessage
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel
 
+from financial_agent.agent.middleware.content_filter_before_agent import (
+    ensure_input_content_safe,
+)
 from financial_agent.agent.middleware.trim import (
     create_trim_node,
     trim_messages_by_turns,
 )
 from financial_agent.agent.ReAct.add_new_expenses_agent import add_new_expenses
 from financial_agent.agent.state_graph import GraphState, InputState, Intentions
+from shared.agent_builder import build_agent_for_version
 from shared.config import settings
 from shared.db import open_checkpointer
-from shared.llm import create_chat_model, get_model_id
-from shared.prompt_loader import load_prompt_config
+from shared.prompt_loader import get_active_version, load_prompt_config
 from shared.repositories.users import ensure_user
 
 logger = structlog.get_logger()
@@ -38,6 +42,10 @@ _WELCOME_PREFIX = (
     "Seja bem-vindo(a) ao seu assistente financeiro! Você pode me contar "
     "seus gastos a qualquer momento, por exemplo: “gastei 35 no almoço”.\n\n"
     "Sobre o que você me chamou:"
+)
+_UNSAFE_INPUT_MESSAGE = (
+    "Não posso ajudar com pedidos para ignorar instruções ou revelar "
+    "configurações internas. Posso ajudar a registrar um gasto."
 )
 
 
@@ -74,32 +82,28 @@ async def llm_call_router(state: GraphState) -> dict:
     ROUTER_PROMPT_NAME = "ROUTER_SYSTEM_PROMPT"
 
     """Classifica a intenção da mensagem do usuário."""
-    prompt_config = load_prompt_config(ROUTER_PROMPT_NAME)
 
-    llm = create_chat_model(
-        model=get_model_id(prompt_config["llm_model"]),
-        temperature=prompt_config.get("llm_temperature"),
-        reasoning_effort=prompt_config.get("llm_reasoning_effort"),
-    ).with_structured_output(RouteIntention)
+    version = get_active_version(ROUTER_PROMPT_NAME)
+    agent = build_agent_for_version(
+        prompt_name=ROUTER_PROMPT_NAME,
+        version=version,
+        response_format=ToolStrategy(RouteIntention),
+        agent_name="llm_router",
+    )
+
+    load_prompt_config(ROUTER_PROMPT_NAME)
 
     trimmed_messages = trim_messages_by_turns(
         state["messages"], keep_turns=settings.trim_keep_tuns
     )
 
-    result = cast(
-        RouteIntention,
-        await llm.ainvoke(
-            [
-                {"role": "system", "content": prompt_config["prompt_content"]},
-                *trimmed_messages,
-            ]
-        ),
-    )
+    result = await agent.ainvoke({"messages": trimmed_messages})
+    route = cast(RouteIntention, result["structured_response"])
 
-    return {"intention": result.intentions_decision}
+    return {"intention": route.intentions_decision}
 
 
-def route_decision(state: GraphState) -> str:
+def route_decision_intentions(state: GraphState) -> str:
     """Escolhe o nó de destino a partir da intenção classificada."""
     routes: dict[str, str] = {
         "add_new_expenses": "add_new_expenses_agent",
@@ -110,6 +114,20 @@ def route_decision(state: GraphState) -> str:
     }
 
     return routes.get(state.get("intention", "undefined"), "undefined_agent")
+
+
+def route_input_content(
+    state: GraphState,
+) -> Literal["blocked_input", "ensure_user_node"]:
+    """Decide o primeiro nó sem chamar o LLM."""
+    if ensure_input_content_safe(state) == "unsafe":
+        return "blocked_input"
+    return "ensure_user_node"
+
+
+async def blocked_input(state: GraphState) -> dict:
+    """Encerra uma entrada bloqueada com uma resposta fixa, sem usar LLM."""
+    return {"messages": [AIMessage(content=_UNSAFE_INPUT_MESSAGE)]}
 
 
 async def greeting_agent(state: GraphState) -> dict:
@@ -136,6 +154,7 @@ def build_workflow() -> StateGraph:
     """Monta o grafo do assistente, sem compilar."""
     builder = StateGraph(GraphState, input_schema=InputState)
 
+    builder.add_node("blocked_input", blocked_input)
     builder.add_node("ensure_user_node", ensure_user_node)
     builder.add_node("llm_call_router", llm_call_router)
     builder.add_node("add_new_expenses_agent", add_new_expenses)
@@ -148,11 +167,15 @@ def build_workflow() -> StateGraph:
         "trim_messages", create_trim_node(keep_turns=settings.trim_keep_tuns_node)
     )
 
-    builder.add_edge(START, "ensure_user_node")
+    builder.add_conditional_edges(
+        START,
+        route_input_content,
+        ["blocked_input", "ensure_user_node"],
+    )
     builder.add_edge("ensure_user_node", "llm_call_router")
     builder.add_conditional_edges(
         "llm_call_router",
-        route_decision,
+        route_decision_intentions,
         [
             "add_new_expenses_agent",
             "report_agent",
@@ -161,6 +184,8 @@ def build_workflow() -> StateGraph:
             "undefined_agent",
         ],
     )
+
+    builder.add_edge("blocked_input", END)
 
     for node in (
         "add_new_expenses_agent",

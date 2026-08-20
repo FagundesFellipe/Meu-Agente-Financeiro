@@ -28,15 +28,14 @@ def _check_twilio_credentials() -> None:
     if settings.resolved_twilio_outbound_mode != "real":
         return
 
-    missing = []
-    if not settings.twilio_account_sid:
-        missing.append("TWILIO_ACCOUNT_SID")
-    if not settings.twilio_api_key_sid:
-        missing.append("TWILIO_API_KEY_SID")
-    if not settings.twilio_api_key_secret:
-        missing.append("TWILIO_API_KEY_SECRET")
-    if not settings.twilio_from_number:
-        missing.append("TWILIO_FROM_NUMBER")
+    mandadory_credentials = {
+        "TWILIO_ACCOUNT_SID": settings.twilio_account_sid,
+        "TWILIO_API_KEY_SID": settings.twilio_api_key_sid,
+        "TWILIO_API_KEY_SECRECT": settings.twilio_api_key_secret,
+        "TWILIO_FROM_NUMBER": settings.twilio_from_number,
+    }
+
+    missing = [name for name, value in mandadory_credentials.items() if not value]
 
     if missing:
         logger.error(
@@ -55,6 +54,21 @@ def _check_telegram_credentials() -> None:
     """Avisa (sem interromper o Worker) se o Telegram estiver sem bot token."""
     if not settings.telegram_bot_token:
         logger.warning("telegram_bot_token_missing")
+
+
+async def run_worker_loop() -> None:
+    while True:
+        message = await claim_next_message(settings.lease_seconds)
+
+        if message is None:
+            await asyncio.sleep(settings.poll_interval_seconds)
+            continue
+
+        if message is None:
+            await asyncio.sleep(settings.poll_interval_seconds)
+            continue
+
+        await process_message(message)
 
 
 async def main() -> None:
@@ -85,15 +99,7 @@ async def main() -> None:
     )
 
     try:
-        while True:
-            message = await claim_next_message(settings.lease_seconds)
-
-            if message is None:
-                await asyncio.sleep(settings.poll_interval_seconds)
-                continue
-
-            await process_message(message)
-
+        await run_worker_loop()
     except KeyboardInterrupt:
         logger.info("worker_interrupted")
     finally:
