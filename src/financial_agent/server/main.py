@@ -22,12 +22,13 @@ from financial_agent.server.routes.webhook_telegram import (
 from financial_agent.server.routes.webhook_whatsapp import (
     router as webhook_whatsapp_router,
 )
-from src.shared.config import _configure_structlog, settings
-from src.shared.db import (
+from shared.config import _configure_structlog, settings
+from shared.db import (
     bootstrap_langgraph_schema,
     close_checkpointer,
     close_pool,
 )
+from shared.db_sync_categories import sync_categories
 
 logger = structlog.get_logger()
 
@@ -41,6 +42,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("server_starting", port=settings.port)
 
     await run_migrations()
+    await sync_categories()
     await bootstrap_langgraph_schema()
     logger.info("server_ready")
 

@@ -10,6 +10,8 @@ Telegram -> POST /webhook/telegram ->
 
 """
 
+from typing import NamedTuple
+
 import structlog
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Response
 
@@ -17,12 +19,17 @@ from financial_agent.server.dependencies import (
     check_rate_limit,
     validate_twilio_signature,
 )
-from src.shared.config import settings
-from src.shared.queue import enqueue_or_buffer
+from shared.config import settings
+from shared.queue import enqueue_or_buffer
 
 logger = structlog.get_logger()
 
 router = APIRouter(tags=["webhook"])
+
+
+class TwilioMedia(NamedTuple):
+    url: str | None
+    type: str | None
 
 
 @router.post("/webhook/twilio")
@@ -72,12 +79,10 @@ async def webhook_twilio(
     ),
     _signature: None = Depends(validate_twilio_signature),
 ) -> Response:
-    phone_number = (from_number or "").replace("whatsapp:", "")
-    if not phone_number and wa_id:
-        phone_number = wa_id if wa_id.startswith("+") else f"+{wa_id}"
+    phone_number = resolve_sender_phone(from_number=from_number, wa_id=wa_id)
+    to_number = strip_whatsapp_prefix(to_number_form)
 
     body = body or ""
-    to_number = (to_number_form or "").replace("whatsapp:", "")
     message_sid = message_sid or ""
 
     if not phone_number:
@@ -95,9 +100,9 @@ async def webhook_twilio(
         num_media = int(num_media_raw or "0")
     except ValueError:
         num_media = 0
-    media_url = media_url_form.strip() if (num_media > 0 and media_url_form) else None
-    media_type = (
-        media_type_form.strip() if (num_media > 0 and media_type_form) else None
+
+    media = extract_twilio_media(
+        num_media, url_form=media_url_form, type_form=media_type_form
     )
 
     await check_rate_limit(phone_number)
@@ -107,8 +112,8 @@ async def webhook_twilio(
         phone_number=phone_number,
         agent_id=agent,
         body=body,
-        media_url=media_url,
-        media_type=media_type,
+        media_url=media.url,
+        media_type=media.type,
         to_number=to_number,
         message_id=message_sid,
         buffer_seconds=settings.message_buffer_seconds,
@@ -125,3 +130,25 @@ async def webhook_twilio(
     )
 
     return Response(content=EMPTY_TWIML, media_type="application/xml")
+
+
+def strip_whatsapp_prefix(value: str) -> str:
+    return (value or "").replace("whatsapp:", "")
+
+
+def resolve_sender_phone(from_number: str, wa_id: str) -> str:
+    phone = strip_whatsapp_prefix(from_number)
+    if not phone and wa_id:
+        phone = wa_id if wa_id.startswith("+") else f"+{wa_id}"
+    return phone
+
+
+def extract_twilio_media(
+    num_media: int, url_form: str | None, type_form: str | None
+) -> TwilioMedia:
+    if num_media <= 0:
+        return TwilioMedia(None, None)
+    return TwilioMedia(
+        url_form.strip() if url_form else None,
+        type_form.strip() if type_form else None,
+    )

@@ -19,7 +19,7 @@ from typing import Literal
 import structlog
 
 from shared.db import connection as db_connection
-from src.shared.repositories.queue import EnqueueResult, MessageQueue
+from shared.repositories.queue import EnqueueResult, MessageQueue
 
 logger = structlog.get_logger()
 

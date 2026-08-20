@@ -2,8 +2,26 @@
 Configuração centralizada via variáveis de ambiente.
 """
 
+from pathlib import Path
+
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _resolve_prompts_dir() -> Path:
+    """Resolve o diretório de prompts para dev local, pacote instalado e Docker"""
+
+    candidates = [
+        Path(__file__).resolve().parent.parent / "financial_agent/agent/prompts",
+        Path("/app/src/financial_agent/agent/prompts"),
+        Path.cwd() / "src/financial_agent/agent/prompts",
+    ]
+
+    for candidate in candidates:
+        if candidate.is_dir():
+            return candidate
+
+    return candidates[0]
 
 
 class Settings(BaseSettings):
@@ -17,7 +35,7 @@ class Settings(BaseSettings):
     environment_prompt_manager: str = "development"
 
     # --- Diretórios dos Prompts
-    prompt_dir: str = "/src/financial_agent/agent/prompts"
+    prompt_dir: str = str(_resolve_prompts_dir())
 
     # --- Limite de tamanho do prompt
     max_prompt_size: int = 100_000

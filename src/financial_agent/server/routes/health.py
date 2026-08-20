@@ -11,7 +11,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from financial_agent import __version__
-from src.shared.db import check_db_health
+from shared.db import check_db_health
 
 router = APIRouter(tags=["health"])
 

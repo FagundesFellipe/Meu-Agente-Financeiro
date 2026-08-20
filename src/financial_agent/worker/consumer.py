@@ -9,10 +9,8 @@ Uso:
 """
 
 import structlog
-from psycopg_pool import AsyncConnectionPool
 
-from src.shared.repositories.queue import MessageQueue
-from src.shared.queue import claim_next
+from shared.queue import claim_next
 
 logger = structlog.get_logger()
 

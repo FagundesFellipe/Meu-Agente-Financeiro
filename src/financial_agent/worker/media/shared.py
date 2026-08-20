@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import httpx
 import structlog
 
-from src.shared.config import settings
+from shared.config import settings
 
 logger = structlog.get_logger()
 

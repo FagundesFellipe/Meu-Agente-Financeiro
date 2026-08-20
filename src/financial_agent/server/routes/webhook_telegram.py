@@ -14,8 +14,8 @@ from financial_agent.server.dependencies import (
     check_rate_limit,
     validate_telegram_secret_token,
 )
-from src.shared.config import settings
-from src.shared.queue import enqueue_or_buffer
+from shared.config import settings
+from shared.queue import enqueue_or_buffer
 
 logger = structlog.get_logger()
 

@@ -4,8 +4,6 @@ import os
 import warnings
 from pathlib import Path
 
-warnings.filterwarnings("ignore")
-
 from deepeval import evaluate
 from deepeval.dataset import Golden
 from deepeval.evaluate import AsyncConfig, CacheConfig, DisplayConfig, ErrorConfig
@@ -18,7 +16,9 @@ from eval.json_correctness_metric import (
     build_json_correctness_metric,
 )
 
-DATASET = Path("src/eval/dataset/golden.json")
+warnings.filterwarnings("ignore")
+
+DATASET = Path(__file__).resolve().parent / "dataset/golden.json"
 
 
 def load_golden_dataset() -> list[Golden]:

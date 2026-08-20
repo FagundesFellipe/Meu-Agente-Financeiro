@@ -16,8 +16,9 @@ import structlog
 from db.migrate import run_migrations
 from financial_agent.worker.consumer import claim_next_message
 from financial_agent.worker.processor import process_message
-from src.shared.config import _configure_structlog, settings
-from src.shared.db import close_checkpointer, close_pool, get_checkpointer, get_pool
+from shared.config import _configure_structlog, settings
+from shared.db import close_checkpointer, close_pool, get_checkpointer, get_pool
+from shared.db_sync_categories import sync_categories
 
 logger = structlog.get_logger()
 
@@ -69,6 +70,7 @@ async def main() -> None:
 
     await get_pool()
     await run_migrations()
+    await sync_categories()
 
     checkpointer = await get_checkpointer()
     await checkpointer.setup()

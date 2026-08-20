@@ -23,9 +23,9 @@ from financial_agent.worker.clients.twilio import TwilioClient
 from financial_agent.worker.media import telegram as telegram_media
 from financial_agent.worker.media import whatsapp as whatsapp_media
 from financial_agent.worker.media.shared import AUTO_RESPONSE_MEDIA_FAILURE
-from src.shared.config import settings
-from src.shared.queue import Channel, mark_done, mark_failed, upsert_conversation
-from src.shared.repositories.queue import MessageQueue
+from shared.config import settings
+from shared.queue import Channel, mark_done, mark_failed, upsert_conversation
+from shared.repositories.queue import MessageQueue
 
 logger = structlog.get_logger()
 

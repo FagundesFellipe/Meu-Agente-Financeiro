@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-import unicodedata
-from decimal import Decimal, InvalidOperation
-from difflib import SequenceMatcher
-
 from deepeval.metrics import GEval, JsonCorrectnessMetric
 from deepeval.metrics.g_eval import Rubric
 from deepeval.models import OpenRouterModel
 from deepeval.test_case import SingleTurnParams
 
-from financial_agent.agent.state_graph import AddExpensesResult, ExtractedExpense
+from financial_agent.agent.state_graph import AddExpensesResult
 
 
 def build_json_correctness_metric() -> JsonCorrectnessMetric:

@@ -12,7 +12,7 @@ from financial_agent.worker.media.shared import (
 from financial_agent.worker.media.shared import (
     preprocess_incoming_message as _preprocess_incoming_message,
 )
-from src.shared.config import settings
+from shared.config import settings
 
 ALLOWED_MEDIA_HOSTS = {"api.twilio.com"}
 

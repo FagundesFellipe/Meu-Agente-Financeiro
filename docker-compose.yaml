@@ -17,5 +17,42 @@ services:
       interval: 5s
       retries: 5
 
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: assistente_financeiro_API  
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD precisa estar definido no .env}@db:5432/assistente_financeiro 
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 5s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      db:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: assistente_financeiro_WORKER  
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD precisa estar definido no .env}@db:5432/assistente_financeiro
+    depends_on:
+      db:
+        condition: service_healthy
+
+
+
+
+
+
+
 volumes:
   postgres_data:

@@ -51,6 +51,9 @@ typeCheckingMode = "standard"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+financial_agent = ["agent/prompts/**/*.json"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"

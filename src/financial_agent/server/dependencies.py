@@ -33,7 +33,7 @@ import structlog
 from fastapi import HTTPException, Request
 from twilio.request_validator import RequestValidator
 
-from src.shared.config import settings
+from shared.config import settings
 
 logger = structlog.get_logger()
 
