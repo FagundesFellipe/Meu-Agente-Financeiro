@@ -146,9 +146,4 @@ GLOBAL_CATEGORIES: tuple[Category, ...] = (
             "HBO Max e outras assinaturas digitais"
         ),
     ),
-    Category(
-        name="Outros gastos",
-        normalized_name="outros_gastos",
-        description="Despesas diversas que não se enquadram nas demais categorias",
-    ),
 )

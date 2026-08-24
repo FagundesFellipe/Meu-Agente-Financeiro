@@ -13,11 +13,15 @@ Uso:
 """
 
 import hashlib
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from typing import Literal
+from uuid import UUID, uuid4
 
 import structlog
+from psycopg import AsyncConnection
 
+from shared.config import settings
 from shared.db import connection as db_connection
 from shared.repositories.queue import EnqueueResult, MessageQueue
 
@@ -38,6 +42,17 @@ def _lock_key(thread_id: str) -> int:
         byteorder="big",
         signed=True,
     )
+
+
+@asynccontextmanager
+async def hold_thread_processing_lock(thread_id: str):
+    """Serializa toda a execução de uma conversa, inclusive após lease vencido."""
+    async with await AsyncConnection.connect(settings.database_url) as conn:
+        async with conn.transaction():
+            await conn.execute(
+                "SELECT pg_advisory_xact_lock(%s)", (_lock_key(thread_id),)
+            )
+            yield
 
 
 def _is_audio(media_type: str | None) -> bool:
@@ -253,6 +268,7 @@ async def claim_next(lease_seconds: int = 60) -> MessageQueue | None:
     """
 
     lease_until = datetime.now(UTC) + timedelta(seconds=lease_seconds)
+    claim_token = uuid4()
 
     async with db_connection() as conn:
         async with conn.transaction():
@@ -271,27 +287,41 @@ async def claim_next(lease_seconds: int = 60) -> MessageQueue | None:
                     AND attempts >= max_attempts
                 """)
 
+            await conn.execute("""
+                UPDATE message_queue
+                SET status = 'queued',
+                    lease_until = NULL,
+                    process_after = NOW(),
+                    updated_at = NOW()
+                WHERE status = 'processing'
+                    AND lease_until IS NOT NULL
+                    AND lease_until <= NOW()
+                    AND attempts < max_attempts
+                """)
+
             cursor = await conn.execute(
                 """
                 UPDATE message_queue
                 SET status = 'processing',
                     lease_until = %s,
+                    claim_token = %s,
                     attempts = attempts + 1,
                     updated_at = NOW()
                 WHERE id = (
-                    SELECT id FROM message_queue
-                    WHERE (
-                        status = 'queued'
-                        AND process_after <= NOW()
-                        AND attempts < max_attempts
-                    )
-                    OR (
-                        status = 'processing'
-                        AND lease_until IS NOT NULL
-                        AND lease_until <= NOW()
-                        AND attempts < max_attempts
-                    )
-                    ORDER BY created_at ASC
+                    SELECT candidate.id
+                    FROM message_queue AS candidate
+                    WHERE candidate.status = 'queued'
+                      AND candidate.process_after <= NOW()
+                      AND candidate.attempts < candidate.max_attempts
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM message_queue AS earlier
+                          WHERE earlier.thread_id = candidate.thread_id
+                            AND earlier.status IN ('queued', 'processing')
+                            AND (earlier.created_at, earlier.id)
+                                < (candidate.created_at, candidate.id)
+                      )
+                    ORDER BY candidate.created_at ASC, candidate.id ASC
                     LIMIT 1
                     FOR UPDATE SKIP LOCKED
                 )
@@ -303,9 +333,10 @@ async def claim_next(lease_seconds: int = 60) -> MessageQueue | None:
                           media_processing_error,
                           status,
                           process_after, attempts, max_attempts, lease_until,
+                          claim_token,
                           response, error, created_at, updated_at, processed_at
                 """,
-                (lease_until,),
+                (lease_until, claim_token),
             )
             row = await cursor.fetchone()
 
@@ -331,6 +362,7 @@ async def claim_next(lease_seconds: int = 60) -> MessageQueue | None:
                 attempts=row["attempts"],
                 max_attempts=row["max_attempts"],
                 lease_until=row["lease_until"],
+                claim_token=row["claim_token"],
                 response=row["response"],
                 error=row["error"],
                 created_at=row["created_at"],
@@ -350,17 +382,22 @@ async def claim_next(lease_seconds: int = 60) -> MessageQueue | None:
 
 
 async def mark_done(
-    message_id: int,
+    message_id: UUID,
+    claim_token: UUID,
     response: str,
     normalized_input: str | None = None,
     media_processing_status: str | None = None,
     media_processing_error: str | None = None,
-) -> None:
-    """Marca a mensagem como concluída com sucesso"""
+) -> bool:
+    """Marca uma reivindicação ainda ativa como concluída.
+
+    Retorna ``False`` quando outro worker já reassumiu a mensagem após expirar
+    o lease; nesse caso o worker antigo não pode enviar uma resposta tardia.
+    """
 
     async with db_connection() as conn:
         async with conn.transaction():
-            await conn.execute(
+            cursor = await conn.execute(
                 """
                 UPDATE message_queue
                 SET status = 'done',
@@ -371,6 +408,8 @@ async def mark_done(
                     processed_at = NOW(),
                     updated_at = NOW()
                 WHERE id = %s
+                  AND claim_token = %s
+                  AND status = 'processing'
                 """,
                 (
                     response,
@@ -378,13 +417,19 @@ async def mark_done(
                     media_processing_status,
                     media_processing_error,
                     message_id,
+                    claim_token,
                 ),
             )
 
+    if cursor.rowcount != 1:
+        logger.warning("message_done_rejected_stale_claim", message_id=message_id)
+        return False
+
     logger.info("message_done", message_id=message_id)
+    return True
 
 
-async def mark_failed(message_id: int, error: str) -> None:
+async def mark_failed(message_id: UUID, claim_token: UUID, error: str) -> bool:
     """Marca mensagem como falha.
 
     Se ainda houver tentativas restantes volta para a fila.
@@ -397,13 +442,24 @@ async def mark_failed(message_id: int, error: str) -> None:
     async with db_connection() as conn:
         async with conn.transaction():
             _row = await conn.execute(
-                "SELECT attempts, max_attempts FROM message_queue WHERE id = %s",
-                (message_id,),
+                """
+                SELECT attempts, max_attempts
+                FROM message_queue
+                WHERE id = %s AND claim_token = %s AND status = 'processing'
+                FOR UPDATE
+                """,
+                (message_id, claim_token),
             )
 
             row = await _row.fetchone()
 
-            if row and row["attempts"] < row["max_attempts"]:
+            if row is None:
+                logger.warning(
+                    "message_failure_rejected_stale_claim", message_id=message_id
+                )
+                return False
+
+            if row["attempts"] < row["max_attempts"]:
                 backoff_seconds = row["attempts"] * 5
                 next_retry_at = datetime.now(UTC) + timedelta(seconds=backoff_seconds)
 
@@ -415,9 +471,9 @@ async def mark_failed(message_id: int, error: str) -> None:
                         lease_until = NULL,
                         process_after = NOW() + make_interval(secs => %s),
                         updated_at = NOW()
-                    WHERE id = %s
+                    WHERE id = %s AND claim_token = %s AND status = 'processing'
                     """,
-                    (error, backoff_seconds, message_id),
+                    (error, backoff_seconds, message_id, claim_token),
                 )
                 logger.warning(
                     "message_retry",
@@ -437,15 +493,16 @@ async def mark_failed(message_id: int, error: str) -> None:
                         error = %s,
                         processed_at = NOW(),
                         updated_at = NOW()
-                    WHERE id = %s
+                    WHERE id = %s AND claim_token = %s AND status = 'processing'
                     """,
-                    (error, message_id),
+                    (error, message_id, claim_token),
                 )
                 logger.error(
                     "message_failed",
                     message_id=message_id,
                     error=error,
                 )
+    return True
 
 
 async def upsert_conversation(

@@ -23,6 +23,7 @@ from langchain.agents.structured_output import ToolStrategy
 from langchain_core.language_models import BaseChatModel
 
 from shared.llm import create_chat_model, get_model_id
+from shared.llm_tagging import OpenRouterTaggingMiddleware
 from shared.prompt_loader import load_prompt_config
 
 
@@ -80,4 +81,5 @@ def build_agent_for_version(
         system_prompt=system_prompt,
         response_format=response_format,
         name=agent_name,
+        middleware=[OpenRouterTaggingMiddleware(agent_name=agent_name)],
     )

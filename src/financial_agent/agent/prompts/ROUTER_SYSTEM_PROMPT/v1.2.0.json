@@ -8,5 +8,5 @@
   "owner": "Fellipe Fagundes",
   "change_note": "Incluído suporte explícito a aportes e aplicações já realizados no roteamento. Mensagens sobre Tesouro, poupança e investimentos agora são classificadas como `add_new_expenses`, permitindo que o módulo de extração registre esses lançamentos.",
   "created_at": "2026-08-18T14:42:28.132399+00:00",
-  "status": "active"
+  "status": "deprecated"
 }

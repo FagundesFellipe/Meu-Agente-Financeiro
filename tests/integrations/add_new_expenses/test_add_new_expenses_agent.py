@@ -24,6 +24,7 @@ from financial_agent.agent.state_graph import (
     AddExpensesResult,
     ExtractedExpense,
     GraphState,
+    PendingExpense,
 )
 from shared.repositories.categories import CategoryRecord
 from shared.repositories.expenses import ExpenseRecord
@@ -343,7 +344,7 @@ def test_amount_is_total_with_one_installment_is_ignored(categories):
 
 
 def test_amount_is_total_non_exact_division(categories):
-    """100 / 3 = 33.33 (quantizado em 2 casas decimais)."""
+    """100 / 3 = 33,333... → resto de 1 centavo vai para a 1ª parcela."""
     outcome = resolve_extracted_expenses(
         [
             extracted(
@@ -359,8 +360,31 @@ def test_amount_is_total_non_exact_division(categories):
     )
 
     assert len(outcome.expenses) == 3
-    # 100/3 = 33.333... → quantize to 33.33
-    assert all(e.amount == Decimal("33.33") for e in outcome.expenses)
+    amounts = [e.amount for e in outcome.expenses]
+    assert amounts == [Decimal("33.34"), Decimal("33.33"), Decimal("33.33")]
+    assert sum(amounts) == Decimal("100.00")
+
+
+def test_amount_is_total_division_remainder_never_changes_the_total(categories):
+    """5000 / 12 = 416,6666... → soma das parcelas bate exatamente 5000,00."""
+    outcome = resolve_extracted_expenses(
+        [
+            extracted(
+                description="cadeira gamer",
+                amount_raw="5000",
+                installments=12,
+                amount_is_total=True,
+            )
+        ],
+        categories,
+        TZ,
+        NOW,
+    )
+
+    amounts = [e.amount for e in outcome.expenses]
+    assert sum(amounts) == Decimal("5000.00")
+    assert amounts[0] == Decimal("416.67")
+    assert amounts[-1] == Decimal("416.66")
 
 
 # --------------------------------------------------------------------------
@@ -517,19 +541,30 @@ async def test_node_asks_instead_of_saving_when_model_flags_ambiguity(stub_node)
     result = await add_new_expenses(make_state())
 
     assert "insert_calls" not in stub_node
-    assert result["response_text"] == "Qual foi o valor exato?"
+    assert "não consegui identificar" in result["response_text"].lower()
 
 
 async def test_node_combines_confirmation_and_pending_question(stub_node):
     stub_node["set_extraction"](
         AddExpensesResult(
-            expenses=[extracted()],
+            expenses=[extracted(source_start=0, source_end=9, source_text="almoço 35")],
             needs_clarification=True,
-            clarification_message="Quanto você gastou no posto?",
+            pending_expenses=[
+                PendingExpense(
+                    source_start=10,
+                    source_end=18,
+                    source_text="posto 20",
+                    description="posto",
+                    missing_fields=["amount"],
+                    clarification_message="Quanto você gastou no posto?",
+                )
+            ],
         )
     )
 
-    result = await add_new_expenses(make_state())
+    result = await add_new_expenses(
+        make_state(messages=[{"role": "user", "content": "almoço 35 posto 20"}])
+    )
 
     assert "Anotado" in result["response_text"]
     assert "Quanto você gastou no posto?" in result["response_text"]

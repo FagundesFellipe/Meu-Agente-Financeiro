@@ -21,7 +21,12 @@ from financial_agent.agent.middleware.trim import (
     trim_messages_by_turns,
 )
 from financial_agent.agent.ReAct.add_new_expenses_agent import add_new_expenses
+from financial_agent.agent.ReAct.resolve_pending_expenses_agent import (
+    resolve_pending_expenses,
+)
 from financial_agent.agent.state_graph import GraphState, InputState, Intentions
+from financial_agent.agent.tools import calendar as tools_calendar
+from financial_agent.agent.tools.pending_expenses import split_expired_pending_expenses
 from shared.agent_builder import build_agent_for_version
 from shared.config import settings
 from shared.db import open_checkpointer
@@ -75,7 +80,10 @@ async def finalize_response(state: GraphState) -> dict:
     if response_text is None:
         response_text = _NOT_IMPLEMENTED_YET
 
-    return {"messages": [AIMessage(content=response_text)]}
+    return {
+        "response_text": response_text,
+        "messages": [AIMessage(content=response_text)],
+    }
 
 
 async def llm_call_router(state: GraphState) -> dict:
@@ -107,6 +115,7 @@ def route_decision_intentions(state: GraphState) -> str:
     """Escolhe o nó de destino a partir da intenção classificada."""
     routes: dict[str, str] = {
         "add_new_expenses": "add_new_expenses_agent",
+        "continue_pending_expense": "resolve_pending_expenses_agent",
         "view_expenses_report": "report_agent",
         "add_categories_recurring_expenses": "add_recurring_expenses_agent",
         "greeting": "greeting_agent",
@@ -114,6 +123,22 @@ def route_decision_intentions(state: GraphState) -> str:
     }
 
     return routes.get(state.get("intention", "undefined"), "undefined_agent")
+
+
+def route_after_pending_expiration(
+    state: GraphState,
+) -> Literal["llm_call_router", "resolve_pending_expenses_agent"]:
+    """Evita que o roteador descarte o contexto de uma pendência ativa."""
+    if state.get("pending_expenses") or state.get("expired_pending_expenses"):
+        return "resolve_pending_expenses_agent"
+    return "llm_call_router"
+
+
+def route_after_pending_resolution(
+    state: GraphState,
+) -> Literal["add_new_expenses_agent", "finalize_response"]:
+    """Permite gasto novo sem apagar o rascunho pendente."""
+    return state.get("pending_expense_resolution_route", "finalize_response")
 
 
 def route_input_content(
@@ -133,6 +158,19 @@ async def blocked_input(state: GraphState) -> dict:
 async def greeting_agent(state: GraphState) -> dict:
     """Responde a cumprimentos sem intenção financeira."""
     return {"response_text": _GREETING}
+
+
+async def expire_pending_expenses(state: GraphState) -> dict:
+    """Remove rascunhos expirados antes de classificar a mensagem atual."""
+    active, expired = split_expired_pending_expenses(
+        list(state.get("pending_expenses", [])),
+        tools_calendar.user_now(state["user_timezone"]),
+    )
+    return {
+        "pending_expenses": active,
+        "expired_pending_expenses": expired,
+        "needs_clarification": bool(active),
+    }
 
 
 async def undefined_agent(state: GraphState) -> dict:
@@ -156,8 +194,10 @@ def build_workflow() -> StateGraph:
 
     builder.add_node("blocked_input", blocked_input)
     builder.add_node("ensure_user_node", ensure_user_node)
+    builder.add_node("expire_pending_expenses", expire_pending_expenses)
     builder.add_node("llm_call_router", llm_call_router)
     builder.add_node("add_new_expenses_agent", add_new_expenses)
+    builder.add_node("resolve_pending_expenses_agent", resolve_pending_expenses)
     builder.add_node("add_recurring_expenses_agent", add_recurring_expenses_agent)
     builder.add_node("report_agent", report_agent)
     builder.add_node("greeting_agent", greeting_agent)
@@ -172,12 +212,18 @@ def build_workflow() -> StateGraph:
         route_input_content,
         ["blocked_input", "ensure_user_node"],
     )
-    builder.add_edge("ensure_user_node", "llm_call_router")
+    builder.add_edge("ensure_user_node", "expire_pending_expenses")
+    builder.add_conditional_edges(
+        "expire_pending_expenses",
+        route_after_pending_expiration,
+        ["llm_call_router", "resolve_pending_expenses_agent"],
+    )
     builder.add_conditional_edges(
         "llm_call_router",
         route_decision_intentions,
         [
             "add_new_expenses_agent",
+            "resolve_pending_expenses_agent",
             "report_agent",
             "add_recurring_expenses_agent",
             "greeting_agent",
@@ -186,6 +232,12 @@ def build_workflow() -> StateGraph:
     )
 
     builder.add_edge("blocked_input", END)
+
+    builder.add_conditional_edges(
+        "resolve_pending_expenses_agent",
+        route_after_pending_resolution,
+        ["add_new_expenses_agent", "finalize_response"],
+    )
 
     for node in (
         "add_new_expenses_agent",

@@ -84,8 +84,15 @@ async def _chat_completion_media(messages: list[dict]) -> str:
             headers={
                 "Authorization": f"Bearer {api_key.get_secret_value()}",
                 "Content-Type": "application/json",
+                "X-Title": "transcription",
             },
-            json={"model": settings.openrouter_midia_model, "messages": messages},
+            json={
+                "model": settings.openrouter_midia_model,
+                "messages": messages,
+                # user_id ainda não está disponível aqui — a transcrição roda
+                # antes de ensure_user_node, dentro do grafo, resolver o usuário.
+                "user": "transcription",
+            },
             timeout=45.0,
         )
         response.raise_for_status()

@@ -55,6 +55,7 @@ class MessageQueue(BaseModel):
     attempts: int = 0
     max_attempts: int = 3
     lease_until: datetime | None = None
+    claim_token: UUID | None = None
     response: str | None = None
     error: str | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

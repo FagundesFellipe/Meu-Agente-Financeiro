@@ -20,9 +20,10 @@ Correção de gasto ainda não é suportada — o prompt instrui o modelo a devo
 """
 
 import calendar
+import re
 from dataclasses import dataclass
 from datetime import datetime
-from decimal import Decimal
+from decimal import ROUND_DOWN, Decimal
 from typing import Any, cast
 
 import structlog
@@ -34,6 +35,8 @@ from financial_agent.agent.state_graph import (
     ExpenseDetails,
     ExtractedExpense,
     GraphState,
+    PendingExpense,
+    PendingExpenseField,
 )
 from financial_agent.agent.tools import (
     amount_parser,
@@ -41,6 +44,11 @@ from financial_agent.agent.tools import (
     payment_method,
 )
 from financial_agent.agent.tools import calendar as tools_calendar
+from financial_agent.agent.tools.pending_expenses import (
+    assign_pending_metadata,
+    format_pending_questions,
+    keep_pending_metadata,
+)
 from shared.agent_builder import build_agent_for_version
 from shared.prompt_loader import get_active_version
 from shared.repositories.categories import (
@@ -61,12 +69,18 @@ _LLM_ERROR_MESSAGE = (
     "Desculpe, não consegui processar sua mensagem agora. Pode tentar novamente?"
 )
 
+_INCONSISTENT_EXTRACTION_MESSAGE = (
+    "Não consegui identificar com segurança qual gasto precisa de esclarecimento. "
+    "Pode reenviar a informação com descrição e valor?"
+)
+
 
 @dataclass(frozen=True, slots=True)
 class ResolutionOutcome:
     """Resultado do pós-processamento determinístico de uma extração."""
 
     expenses: list[ExpenseDetails]
+    pending_expenses: list[PendingExpense]
     problems: list[str]
 
 
@@ -122,8 +136,25 @@ def build_context_message(
     return SystemMessage(content="\n".join(lines))
 
 
+def _split_total_into_installments(total: Decimal, installments: int) -> list[Decimal]:
+    """Divide ``total`` em ``installments`` parcelas cujo somatório bate exato.
+
+    A divisão em centavos raramente é exata (ex.: 5000 / 12 = 416,6666...), então
+    a parcela base é arredondada para baixo e o resto em centavos é distribuído,
+    um centavo por parcela, a partir da primeira — em vez de arredondar cada
+    parcela isoladamente e deixar o total derivar do valor informado.
+    """
+    base_amount = (total / installments).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
+    remainder_cents = int((total - base_amount * installments) / Decimal("0.01"))
+
+    amounts = [base_amount] * installments
+    for i in range(remainder_cents):
+        amounts[i] += Decimal("0.01")
+    return amounts
+
+
 def _expand_installments(
-    base: ExpenseDetails, installments: int
+    base: ExpenseDetails, installments: int, amounts: list[Decimal]
 ) -> list[ExpenseDetails]:
     """Expande um gasto parcelado em um registro por parcela.
 
@@ -142,7 +173,7 @@ def _expand_installments(
             ExpenseDetails(
                 description=f"{base.description} ({i + 1}/{installments})",
                 original_description=base.original_description,
-                amount=base.amount,
+                amount=amounts[i],
                 occurred_at=occurred_at,
                 category_id=base.category_id,
                 category_name=base.category_name,
@@ -153,6 +184,99 @@ def _expand_installments(
             )
         )
     return expanded
+
+
+def _pending_from_candidate(
+    candidate: ExtractedExpense,
+    missing_field: PendingExpenseField,
+    question: str,
+) -> PendingExpense:
+    """Converte uma falha determinística em rascunho, nunca em persistência."""
+    return PendingExpense(
+        description=candidate.description or None,
+        source_start=candidate.source_start,
+        source_end=candidate.source_end,
+        source_text=candidate.source_text,
+        amount_raw=candidate.amount_raw or None,
+        installments=candidate.installments,
+        amount_is_total=candidate.amount_is_total,
+        date_hint=candidate.date_hint,
+        time_hint=candidate.time_hint,
+        payment_method_hint=candidate.payment_method_hint,
+        category_hint=candidate.category_hint,
+        confidence=candidate.confidence,
+        missing_fields=[missing_field],
+        clarification_message=question,
+    )
+
+
+def _last_message_content(state: GraphState) -> str:
+    message = state["messages"][-1]
+    if isinstance(message, dict):
+        return str(message.get("content", ""))
+    return str(getattr(message, "content", ""))
+
+
+def _extraction_has_overlapping_items(
+    extraction: AddExpensesResult, source_message: str
+) -> bool:
+    """Exige faixas válidas e disjuntas quando há itens claros e pendentes."""
+    if not extraction.expenses or not extraction.pending_expenses:
+        return False
+
+    spans = [
+        (item.source_start, item.source_end, item.source_text)
+        for item in [*extraction.expenses, *extraction.pending_expenses]
+    ]
+    if any(
+        start is None
+        or end is None
+        or not text
+        or start >= end
+        or end > len(source_message)
+        or source_message[start:end] != text
+        for start, end, text in spans
+    ):
+        return True
+
+    normalized_spans = [
+        (start, end) for start, end, _ in spans if start is not None and end is not None
+    ]
+    spans_overlap = any(
+        first_start < second_end and second_start < first_end
+        for index, (first_start, first_end) in enumerate(normalized_spans)
+        for second_start, second_end in normalized_spans[index + 1 :]
+    )
+    return spans_overlap or any(
+        not _source_text_substantiates_item(item, source_text)
+        for item, (_, _, source_text) in zip(
+            [*extraction.expenses, *extraction.pending_expenses], spans, strict=True
+        )
+    )
+
+
+def _source_text_substantiates_item(
+    item: ExtractedExpense | PendingExpense, source_text: str | None
+) -> bool:
+    """Confere se a faixa informa os dados conhecidos do próprio gasto.
+
+    Isso impede que o modelo divida uma compra ambígua em um registro claro e
+    uma pendência sobre um sufixo sem relação, apenas para produzir faixas
+    disjuntas.
+    """
+    if not source_text:
+        return False
+
+    normalized_source = re.sub(r"[^\w]", "", source_text.casefold())
+    normalized_description = re.sub(r"[^\w]", "", (item.description or "").casefold())
+    normalized_amount = re.sub(r"\D", "", item.amount_raw or "")
+    source_digits = re.sub(r"\D", "", source_text)
+
+    return (
+        bool(normalized_description or normalized_amount)
+        and (not normalized_description or normalized_description in normalized_source)
+        and (not normalized_amount or normalized_amount in source_digits)
+    )
 
 
 # ---- AGENT PROCESS ----
@@ -186,19 +310,13 @@ def resolve_extracted_expenses(
     itens inequívocos da mesma mensagem continuam sendo salvos.
     """
     resolved: list[ExpenseDetails] = []
+    pending_expenses: list[PendingExpense] = []
     problems: list[str] = []
 
     for candidate in extracted:
         label = candidate.description or "gasto"
         try:
             amount = amount_parser.parse_amount(candidate.amount_raw)
-
-            if (
-                candidate.amount_is_total
-                and candidate.installments
-                and candidate.installments > 1
-            ):
-                amount = (amount / candidate.installments).quantize(Decimal("0.01"))
 
             occurred_at = tools_calendar.resolve_occurred_at(
                 date_hint=candidate.date_hint,
@@ -212,13 +330,25 @@ def resolve_extracted_expenses(
                 categories=categories,
             )
         except amount_parser.AmountParseError:
-            problems.append(f"Qual foi o valor exato de “{label}”?")
+            question = f"Qual foi o valor exato de “{label}”?"
+            pending_expenses.append(
+                _pending_from_candidate(candidate, "amount", question)
+            )
+            problems.append(question)
             continue
         except tools_calendar.DateResolutionError:
-            problems.append(f"Em que data foi o gasto de “{label}”?")
+            question = f"Em que data foi o gasto de “{label}”?"
+            pending_expenses.append(
+                _pending_from_candidate(candidate, "date", question)
+            )
+            problems.append(question)
             continue
         except get_category.CategoryResolutionError as exc:
-            problems.append(f"Não consegui categorizar “{label}” ({exc}).")
+            question = f"Não consegui categorizar “{label}” ({exc})."
+            pending_expenses.append(
+                _pending_from_candidate(candidate, "category", question)
+            )
+            problems.append(question)
             continue
 
         base = ExpenseDetails(
@@ -236,11 +366,20 @@ def resolve_extracted_expenses(
 
         installments = candidate.installments
         if installments and installments > 1:
-            resolved.extend(_expand_installments(base, installments))
+            amounts = (
+                _split_total_into_installments(amount, installments)
+                if candidate.amount_is_total
+                else [amount] * installments
+            )
+            resolved.extend(_expand_installments(base, installments, amounts))
         else:
             resolved.append(base)
 
-    return ResolutionOutcome(expenses=resolved, problems=problems)
+    return ResolutionOutcome(
+        expenses=resolved,
+        pending_expenses=pending_expenses,
+        problems=problems,
+    )
 
 
 async def _extract(state: GraphState, context: SystemMessage) -> AddExpensesResult:
@@ -280,6 +419,20 @@ async def add_new_expenses(state: GraphState) -> dict:
 
     extraction = await _extract(state, build_context_message(now, categories))
 
+    existing_pending = list(state.get("pending_expenses", []))
+    if (
+        extraction.needs_clarification and not extraction.pending_expenses
+    ) or _extraction_has_overlapping_items(extraction, _last_message_content(state)):
+        return {
+            "extracted_expenses": [],
+            "pending_expenses": existing_pending,
+            "expired_pending_expenses": [],
+            "needs_clarification": bool(existing_pending),
+            "clarification_message": _INCONSISTENT_EXTRACTION_MESSAGE,
+            "expense_details": [],
+            "response_text": _INCONSISTENT_EXTRACTION_MESSAGE,
+        }
+
     outcome = resolve_extracted_expenses(
         extracted=extraction.expenses,
         categories=categories,
@@ -303,23 +456,28 @@ async def add_new_expenses(state: GraphState) -> dict:
             )
             records = []
 
-    pending = list(outcome.problems)
-    if extraction.needs_clarification and extraction.clarification_message:
-        pending.insert(0, extraction.clarification_message)
+    new_pending = assign_pending_metadata(extraction.pending_expenses, now)
+    new_pending.extend(
+        keep_pending_metadata(pending, now) for pending in outcome.pending_expenses
+    )
+    all_pending = [*existing_pending, *new_pending]
+    pending_text = format_pending_questions(new_pending)
 
-    if records and pending:
-        response_text = format_confirmation(records) + "\n\n" + " ".join(pending)
+    if records and pending_text:
+        response_text = format_confirmation(records) + "\n\n" + pending_text
     elif records:
         response_text = format_confirmation(records)
-    elif pending:
-        response_text = " ".join(pending)
+    elif pending_text:
+        response_text = pending_text
     else:
         response_text = _NO_EXPENSE_FOUND
 
     return {
         "extracted_expenses": extraction.expenses,
-        "needs_clarification": extraction.needs_clarification,
-        "clarification_message": extraction.clarification_message,
+        "pending_expenses": all_pending,
+        "expired_pending_expenses": [],
+        "needs_clarification": bool(all_pending),
+        "clarification_message": pending_text or None,
         "expense_details": outcome.expenses,
         "response_text": response_text,
     }

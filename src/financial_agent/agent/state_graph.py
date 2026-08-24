@@ -18,11 +18,12 @@ from uuid import UUID
 
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing_extensions import TypedDict
 
 Intentions = Literal[
     "add_new_expenses",
+    "continue_pending_expense",
     "add_categories_recurring_expenses",
     "view_expenses_report",
     "greeting",
@@ -51,6 +52,12 @@ class ExtractedExpense(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    source_start: int | None = Field(default=None, ge=0)
+    source_end: int | None = Field(default=None, gt=0)
+    source_text: str | None = Field(
+        default=None,
+        description="Trecho literal da mensagem entre source_start e source_end",
+    )
     description: str = Field(
         description="O que foi comprado ou pago, nas palavras do usuário, sem o valor"
     )
@@ -99,13 +106,66 @@ class ExtractedExpense(BaseModel):
     )
 
 
+PendingExpenseField = Literal[
+    "description",
+    "amount",
+    "installments",
+    "date",
+    "category",
+    "payment_method",
+]
+
+PendingExpenseResolutionRoute = Literal[
+    "add_new_expenses_agent",
+    "finalize_response",
+]
+
+
+class PendingExpense(BaseModel):
+    """Rascunho de gasto que ainda não está autorizado a ser persistido.
+
+    O identificador e a data de criação são atribuídos pelo servidor. Os demais
+    campos preservam apenas o que já foi extraído, para que uma continuação não
+    precise reenviar o histórico inteiro ao modelo.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str | None = Field(
+        default=None, description="Identificador estável do rascunho"
+    )
+    source_start: int | None = Field(default=None, ge=0)
+    source_end: int | None = Field(default=None, gt=0)
+    source_text: str | None = Field(
+        default=None,
+        description="Trecho literal da mensagem entre source_start e source_end",
+    )
+    description: str | None = None
+    amount_raw: str | None = None
+    installments: int | None = Field(default=None, ge=1)
+    amount_is_total: bool = False
+    date_hint: str | None = None
+    time_hint: str | None = None
+    payment_method_hint: PaymentMethodHint | None = None
+    category_hint: str | None = None
+    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    missing_fields: list[PendingExpenseField] = Field(min_length=1)
+    clarification_message: str = Field(min_length=1)
+    created_at: datetime | None = None
+
+
 class AddExpensesResult(BaseModel):
     """Resposta estruturada do sub-agente de registro de gastos."""
 
     model_config = ConfigDict(extra="forbid")
 
     expenses: list[ExtractedExpense] = Field(
-        default_factory=list, description="Gastos aproveitáveis extraídos da mensagem"
+        default_factory=list,
+        description="Gastos completos e autorizados a seguir para validação",
+    )
+    pending_expenses: list[PendingExpense] = Field(
+        default_factory=list,
+        description="Rascunhos incompletos que nunca podem entrar em expenses",
     )
     needs_clarification: bool = Field(
         default=False, description="True quando falta informação para registrar"
@@ -113,6 +173,13 @@ class AddExpensesResult(BaseModel):
     clarification_message: str | None = Field(
         default=None, description="Pergunta a enviar ao usuário quando há ambiguidade"
     )
+
+    @model_validator(mode="after")
+    def synchronize_clarification_flag(self) -> "AddExpensesResult":
+        """Mantém o campo legado coerente quando há rascunhos estruturados."""
+        if self.pending_expenses:
+            self.needs_clarification = True
+        return self
 
 
 class ExpenseDetails(BaseModel):
@@ -187,6 +254,9 @@ class GraphState(TypedDict):
     message_id: NotRequired[str | None]
     intention: NotRequired[Intentions]
     extracted_expenses: NotRequired[list[ExtractedExpense]]
+    pending_expenses: NotRequired[list[PendingExpense]]
+    expired_pending_expenses: NotRequired[list[PendingExpense]]
+    pending_expense_resolution_route: NotRequired[PendingExpenseResolutionRoute]
     needs_clarification: NotRequired[bool]
     clarification_message: NotRequired[str | None]
     expense_details: NotRequired[list[ExpenseDetails]]

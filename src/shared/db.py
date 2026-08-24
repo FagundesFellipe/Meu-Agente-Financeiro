@@ -84,11 +84,15 @@ async def get_checkpointer() -> AsyncPostgresSaver:
     global _checkpointer
 
     if _checkpointer is None:
-        _checkpointer = AsyncPostgresSaver(conn=await get_pool()).with_allowlist(
-            [
-                ("financial_agent.agent.state_graph", "ExpenseDetails"),
-                ("financial_agent.agent.state_graph", "ExtractedExpense"),
-            ]
+        _checkpointer = cast(
+            AsyncPostgresSaver,
+            AsyncPostgresSaver(conn=await get_pool()).with_allowlist(
+                [
+                    ("financial_agent.agent.state_graph", "ExpenseDetails"),
+                    ("financial_agent.agent.state_graph", "ExtractedExpense"),
+                    ("financial_agent.agent.state_graph", "PendingExpense"),
+                ]
+            ),
         )
         logger.info("checkpointer_created")
     return _checkpointer
