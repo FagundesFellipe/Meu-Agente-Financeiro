@@ -1,12 +1,9 @@
-"""Integration tests for prompts_manager.src.prompt_strore."""
+"""Testes de integração para prompts_manager.src.prompt_strore."""
 
 import json
 import re
 
 import pytest
-
-from tests.integrations.helper import patched_store, temp_prompts_dir  # noqa: F401
-
 
 _FAKE_CONTENT = "This is fake prompt content for testing."
 _FAKE_MODEL = "gpt-4-test"
@@ -16,7 +13,7 @@ _FAKE_NOTE = "Automated test version."
 
 class TestGetPromptDir:
     def test_valid_name(self, patched_store, temp_prompts_dir):
-        """Valid prompt name resolves to a path inside the prompts directory."""
+        """Nome de prompt válido resolve para caminho dentro do dir de prompts."""
         result = patched_store.get_prompt_dir("my-prompt_v1")
         expected = temp_prompts_dir / "my-prompt_v1"
         assert result == expected
@@ -32,22 +29,20 @@ class TestGetPromptDir:
         ],
     )
     def test_invalid_name_raises_valueerror(self, patched_store, invalid_name):
-        """Names with invalid characters raise ValueError."""
+        """Nomes com caracteres inválidos lançam ValueError."""
         with pytest.raises(ValueError, match="Invalid prompt name"):
             patched_store.get_prompt_dir(invalid_name)
 
     def test_path_traversal_blocked(self, patched_store, monkeypatch):
-        """A name that passes regex but resolves outside PROMPTS_DIR raises ValueError."""
-        monkeypatch.setattr(
-            patched_store, "_VALID_PROMPT_NAME", re.compile(r"^.+$")
-        )
+        """Nome que passa na regex mas resolve fora de PROMPTS_DIR lança ValueError."""
+        monkeypatch.setattr(patched_store, "_VALID_PROMPT_NAME", re.compile(r"^.+$"))
         with pytest.raises(ValueError, match="Path traversal blocked"):
             patched_store.get_prompt_dir("../../etc")
 
 
 class TestCreatePromptVersion:
     def test_first_version_is_v1_0_0(self, patched_store):
-        """The very first version created for a prompt is always 'v1.0.0'."""
+        """A primeira versão criada para um prompt é sempre 'v1.0.0'."""
         version = patched_store.create_prompt_version(
             prompt_name="first-ver-test",
             prompt_content=_FAKE_CONTENT,
@@ -59,7 +54,7 @@ class TestCreatePromptVersion:
         assert version == "v1.0.0"
 
     def test_updates_metadata_correctly(self, patched_store):
-        """Metadata is updated with the new active version after creation."""
+        """Metadados são atualizados com a nova versão ativa após a criação."""
         patched_store.create_prompt_version(
             prompt_name="meta-test",
             prompt_content=_FAKE_CONTENT,
@@ -75,7 +70,7 @@ class TestCreatePromptVersion:
         assert metadata["active_versions"]["meta-test"] == "v1.0.0"
 
     def test_rejects_oversized_content(self, patched_store, monkeypatch):
-        """Content larger than MAX_PROMPT_SIZE raises ValueError."""
+        """Conteúdo maior que MAX_PROMPT_SIZE lança ValueError."""
         monkeypatch.setattr(patched_store, "MAX_PROMPT_SIZE", 10)
 
         with pytest.raises(ValueError, match="exceeds maximum size"):
@@ -88,7 +83,7 @@ class TestCreatePromptVersion:
             )
 
     def test_subsequent_version_bumps_correctly(self, patched_store):
-        """Second creation uses the correct semver bump."""
+        """Segunda criação usa o incremento semver correto."""
         patched_store.create_prompt_version(
             prompt_name="bump-test",
             prompt_content=_FAKE_CONTENT,
@@ -107,7 +102,7 @@ class TestCreatePromptVersion:
         assert version2 == "v1.0.1"
 
     def test_old_active_is_deprecated_on_new_creation(self, patched_store):
-        """The previous active version is marked as deprecated after a new version."""
+        """A versão ativa anterior é marcada como deprecated após uma nova versão."""
         patched_store.create_prompt_version(
             prompt_name="deprecate-on-create",
             prompt_content=_FAKE_CONTENT,
@@ -132,7 +127,7 @@ class TestCreatePromptVersion:
 
 class TestDeprecateVersion:
     def test_cannot_deprecate_active_version(self, patched_store):
-        """Deprecating the currently active version returns False."""
+        """Depreciar a versão atualmente ativa retorna False."""
         patched_store.create_prompt_version(
             prompt_name="dep-test",
             prompt_content=_FAKE_CONTENT,
@@ -145,12 +140,12 @@ class TestDeprecateVersion:
         assert result is False
 
     def test_cannot_deprecate_nonexistent_version(self, patched_store):
-        """Deprecating a version that does not exist returns False."""
+        """Depreciar uma versão que não existe retorna False."""
         result = patched_store.deprecate_version("no-such-prompt", "v9.9.9")
         assert result is False
 
     def test_can_deprecate_non_active_version(self, patched_store):
-        """A non-active version can be deprecated successfully."""
+        """Uma versão não ativa pode ser depreciada com sucesso."""
         patched_store.create_prompt_version(
             prompt_name="dep-ok-test",
             prompt_content=_FAKE_CONTENT,
@@ -175,12 +170,12 @@ class TestDeprecateVersion:
 
 class TestActiveVersion:
     def test_activate_nonexistent_version_returns_false(self, patched_store):
-        """Activating a version that does not exist returns False."""
+        """Ativar uma versão que não existe retorna False."""
         result = patched_store.active_version("no-such-prompt", "v9.9.9")
         assert result is False
 
     def test_activate_existing_version_succeeds(self, patched_store):
-        """Activating a known version returns True and updates metadata."""
+        """Ativar uma versão conhecida retorna True e atualiza os metadados."""
         patched_store.create_prompt_version(
             prompt_name="act-test",
             prompt_content=_FAKE_CONTENT,
@@ -203,7 +198,7 @@ class TestActiveVersion:
 
 class TestListVersions:
     def test_sorts_semantically_not_alphabetically(self, patched_store):
-        """list_versions orders by semantic version, not by string sort."""
+        """list_versions ordena por versão semântica, não por ordenação alfabética."""
         prompt_dir = patched_store.get_prompt_dir("sort-test")
         prompt_dir.mkdir()
 
@@ -230,7 +225,7 @@ class TestListVersions:
 
 class TestLoadPromptSpecificVersion:
     def test_falls_back_to_latest_when_no_active(self, patched_store):
-        """When no active version is set, the newest semver version is loaded."""
+        """Sem versão ativa definida, a versão semver mais recente é carregada."""
         prompt_dir = patched_store.get_prompt_dir("fallback-test")
         prompt_dir.mkdir()
 
@@ -255,6 +250,6 @@ class TestLoadPromptSpecificVersion:
         assert result["prompt_version"] == "v1.1.0"
 
     def test_returns_none_for_unknown_prompt(self, patched_store):
-        """Loading a prompt that has no versions returns None."""
+        """Carregar um prompt que não tem versões retorna None."""
         result = patched_store.load_prompt_specific_version("does-not-exist")
         assert result is None

@@ -4,17 +4,42 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project state
 
-This repository is pre-implementation. The only substantial artifact right now is `docs/PRD.md` (in Portuguese) — a full product/technical spec for a conversational expense-tracking assistant. All Python modules under `src/financial_agent/` are empty stub packages (`agent/`, `server/`, `worker/`, `scripts/`, `shared/`), `pyproject.toml` has no dependencies declared yet, and `tests/` (including `tests/integrations/`) has no tests. Treat the PRD as the source of truth for requirements and architecture until code exists to override it — always read the relevant PRD section before implementing a feature rather than guessing at intent.
+`docs/PRD.md` (in Portuguese) is the product/technical spec and remains the source of truth for anything not yet built — read the relevant PRD section before implementing a feature rather than guessing at intent. Where code already exists, the code wins.
 
-The Makefile's `.PHONY` line lists many targets (`dev`, `db`, `api`, `worker`, `frontend`, `up`, `down`, `logs`, `lint`, `format`, `format-check`, `fix`, `typecheck`, `check`, `ci`, `test`, `test-x`, `test-v`, `clean`, `rag-phase-0`) but only `setup` is actually implemented. Don't assume any other `make` target works — check the Makefile before relying on one, and implement missing targets as the corresponding tooling is added.
+What is implemented today:
+
+- `db/migrations/001..004` — full schema: `message_queue`, `user`, `user_channel`, `category`, `recurring_expense`, `expense`, `expense_audit_log`, `model_usage`, plus `updated_at` triggers and Row-Level Security policies keyed on the `app.current_user_id` session variable.
+- `src/shared/` — cross-cutting layer (see module mapping below): settings, LLM factory, prompt loader, global categories, async DB pool, repositories.
+- `src/financial_agent/agent/` — LangGraph workflow (`build_graph_workflow.py`), state contracts (`state_graph.py`), deterministic tools (`tools/`), and the expense-registration sub-agent (`ReAct/add_new_expenses_agent.py`).
+- `src/prompts_manager/` — separate uv workspace member: versioned prompt store with a Flask UI.
+
+Still stubs: `server/` (FastAPI webhook), `worker/` (queue consumer), `scripts/`, `ReAct/report_agent.py`, and the categories/recurring-expenses agent. `build_graph_workflow.py` wires those last two as placeholder nodes that reply "em construção".
+
+The Makefile's `.PHONY` line still lists targets that don't exist (`dev`, `db`, `api`, `worker`, `frontend`, `up`, `down`, `logs`, `clean`, `rag-phase-0`). Check the Makefile before relying on a target.
 
 ## Commands
 
 ```bash
-make setup   # uv venv && uv pip install -e ".[dev]"
+make setup            # uv venv + install the project and prompts_manager as editable
+make test             # pytest (DB-backed tests skip automatically when Postgres is down)
+make check            # ruff check + ruff format --check + pyright src/
+make fix && make format
+make prompt-manager-serve   # Flask UI to author/version prompts
 ```
 
-No `[dev]` extra, lint config, type-check config, or test runner is wired up yet in `pyproject.toml`. When adding the first real dependencies/tooling, wire the matching Makefile target (`lint`, `format`, `typecheck`, `test`, etc.) at the same time so the `.PHONY` declarations stop being aspirational.
+Notes:
+
+- `pytest` gets `src/` on the path via `pythonpath = ["src"]` in `pyproject.toml`, so tests run without installing the package. Running a script directly still needs `PYTHONPATH=src` unless `make setup` was run.
+- Tests marked `db` need a reachable Postgres with the migrations applied; run just those with `uv run pytest -m db`.
+- `make sync-categories` is currently broken — it calls `financial_agent.shared.db_sync_categories.sync_categories_from_env`, but the module lives at `shared.db_sync_categories` and only exposes `sync_categories(conn)`.
+
+## Prompts
+
+Prompts are **not** hardcoded. `shared/prompt_loader.load_prompt_config(name)` reads the active version from `src/financial_agent/agent/prompts/metadata.json` and returns the whole config — `prompt_content`, `llm_model`, `llm_temperature`, `llm_reasoning_effort`. Never inline a system prompt in Python; register it through `prompts_manager` instead.
+
+Drafts awaiting human review live in `docs/prompts/` and are not loaded by anything.
+
+Registered so far: `ROUTER_SYSTEM_PROMPT` (v1.0.0). `ADD_EXPENSES_SYSTEM_PROMPT` is drafted in `docs/prompts/ADD_EXPENSES_SYSTEM_PROMPT_v1.0.0.md` but **not yet registered** — `add_new_expenses` raises `KeyError` until it is.
 
 ## Product context (from docs/PRD.md)
 
@@ -44,7 +69,15 @@ WhatsApp / Telegram → FastAPI webhook → persist message → Postgres-backed 
 - **Postgres** is the system of record for users, messages, expenses, categories, recurring expenses, audit log, cost/usage tracking, *and* the job queue (no separate broker in the MVP). A Supabase MCP server is configured in `.claude/settings.local.json`, suggesting Supabase is the intended Postgres host.
 - **LangGraph** coordinates the per-message flow as a graph of agent nodes rather than separate services: load user context → transcribe audio → classify intent → extract expense(s) → validate → resolve ambiguity/ask for confirmation → persist → run report queries → manage categories/recurring expenses → generate response → send → record cost/metrics. The PRD's suggested `AssistantState` TypedDict (§15.4) is the reference shape for graph state.
 - **OpenRouter** abstracts model access so cheap models can be used for intent classification and stronger models for extraction, with per-call cost/token logging.
-- Expected module mapping onto `src/financial_agent/`: `server/` = FastAPI app + webhook handlers, `worker/` = queue consumer/job runner, `agent/` = LangGraph graph and node implementations, `shared/` = cross-cutting models/utilities (db access, cost tracking, idempotency), `scripts/` = one-off/maintenance scripts. Confirm this mapping against actual code as modules are filled in — it's inferred from the PRD, not yet established by the codebase.
+- Actual module mapping (note: `shared/` is a **top-level package under `src/`**, not a subpackage of `financial_agent/`, despite what some older docstrings say):
+  - `src/financial_agent/server/` — FastAPI app + webhook handlers (stub).
+  - `src/financial_agent/worker/` — queue consumer/job runner (stub).
+  - `src/financial_agent/agent/` — LangGraph graph, state contracts, nodes, and the `ReAct/` sub-agents.
+  - `src/financial_agent/agent/tools/` — deterministic helpers (amount parsing, date resolution, payment-method normalization, category resolution). These are **plain Python functions, not LLM tool-calls** — keeping money math and category resolution out of the model is what enforces the PRD rules above.
+  - `src/shared/` — settings (`config.py`), LLM factory (`llm.py`), prompt loader (`prompt_loader.py`), global categories (`categories.py`), async DB pool (`db.py`), and `repositories/` (one module per table: `users`, `categories`, `expenses`).
+  - `src/financial_agent/scripts/` — one-off/maintenance scripts (stub).
+- Database access is **async only** (`psycopg_pool.AsyncConnectionPool`). Go through `shared.db.user_connection(user_id)` for anything touching a financial table — it sets `app.current_user_id` for the transaction, which is what the RLS policies read. `shared.db.connection()` exists only for lookups that happen before the user is identified.
+- Caveat worth knowing: RLS does not apply to a table's owner. If the app connects as the role that ran the migrations, the policies are bypassed and only the explicit `WHERE user_id = ...` filters in the repositories protect isolation.
 - API and worker are meant to share one codebase but run as separate processes/containers (Docker-based deployment, per PRD §15.6).
 
 ## Skills

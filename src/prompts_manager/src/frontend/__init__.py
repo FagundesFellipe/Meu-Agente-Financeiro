@@ -1,4 +1,4 @@
-"""Flask frontend for the prompt manager."""
+"""Frontend Flask para o gerenciador de prompts."""
 
 from prompts_manager.src.frontend.app import create_app
 

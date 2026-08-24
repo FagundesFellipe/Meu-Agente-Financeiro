@@ -1,0 +1,3 @@
+# PostgresSQL com pgvector habilitado
+
+FROM pgvector/pgvector:pg16

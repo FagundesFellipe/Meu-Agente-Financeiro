@@ -1,3 +1,7 @@
 {
-  "active_versions": {}
+  "active_versions": {
+    "ROUTER_SYSTEM_PROMPT": "v2.0.0",
+    "ADD_EXPENSES": "v3.2.1",
+    "RESOLVE_PENDING_EXPENSE": "v1.2.0"
+  }
 }

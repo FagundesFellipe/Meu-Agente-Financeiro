@@ -1,14 +1,15 @@
-"""File-based prompt store with semantic versioning.
+"""Armazenamento de prompts em arquivos com versionamento semântico.
 
-Prompts are stored as JSON files in a directory structure keyed by name.
-Each prompt directory holds one JSON file per version, and a top-level
-``metadata.json`` tracks which version is currently active for each prompt.
+Os prompts são armazenados como arquivos JSON em uma estrutura de diretórios
+organizada por nome. Cada diretório de prompt contém um arquivo JSON por
+versão, e um arquivo ``metadata.json`` na raiz rastreia qual versão está
+ativa para cada prompt.
 """
 
+import fcntl
 import json
 import re
-import fcntl
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from prompts_manager.config import settings
@@ -22,18 +23,18 @@ MAX_PROMPT_SIZE = settings.max_prompt_size
 
 # ---- UTIL ----
 def ensure_prompts_dir():
-    """Create the prompts directory and an empty metadata file if they do not exist."""
+    """Cria o diretório de prompts e um arquivo de metadados vazio se não existirem."""
     PROMPTS_DIR.mkdir(exist_ok=True)
     if not METADATA_FILE.exists():
         with open(METADATA_FILE, "w") as file:
-            json.dump({"active_versions": {}}, file, indent=2)
+            json.dump({"active_versions": {}}, file, indent=2, ensure_ascii=False)
 
 
 # ---- METADATA ----
 def load_metadata() -> dict:
-    """Load and return the metadata dictionary from ``metadata.json``.
+    """Carrega e retorna o dicionário de metadados do ``metadata.json``.
 
-    Creates the file with a default structure if it does not exist.
+    Cria o arquivo com a estrutura padrão se ele não existir.
     """
     ensure_prompts_dir()
 
@@ -44,26 +45,26 @@ def load_metadata() -> dict:
 
 
 def save_metadata(metadata: dict):
-    """Persist the given metadata dictionary to ``metadata.json`` atomically.
+    """Persiste o dicionário de metadados no ``metadata.json`` atomicamente.
 
-    Acquires an exclusive lock to prevent race conditions between
-    concurrent read-modify-write cycles.
+    Adquire um lock exclusivo para evitar condições de corrida entre
+    ciclos concorrentes de leitura-modificação-escrita.
     """
     ensure_prompts_dir()
     with open(METADATA_FILE, "r+") as file:
         fcntl.flock(file, fcntl.LOCK_EX)
         file.seek(0)
-        json.dump(metadata, file, indent=2)
+        json.dump(metadata, file, indent=2, ensure_ascii=False)
         file.truncate()
         fcntl.flock(file, fcntl.LOCK_UN)
 
 
 # ---- PROMPTS
 def get_prompt_dir(prompt_name: str) -> Path:
-    """Return the directory path for a given prompt name.
+    """Retorna o caminho do diretório para um dado nome de prompt.
 
-    Raises ValueError if the name contains invalid characters or
-    would resolve outside the prompts directory.
+    Lança ValueError se o nome contiver caracteres inválidos ou
+    resolver para fora do diretório de prompts.
     """
     if not _VALID_PROMPT_NAME.match(prompt_name):
         raise ValueError(
@@ -77,9 +78,9 @@ def get_prompt_dir(prompt_name: str) -> Path:
 
 
 def list_prompts() -> list[str]:
-    """Return a list of all prompt names.
+    """Retorna uma lista com todos os nomes de prompts.
 
-    Subdirectories inside the prompts root, excluding ``.git``.
+    Subdiretórios dentro da raiz de prompts, excluindo ``.git``.
     """
     ensure_prompts_dir()
 
@@ -90,9 +91,9 @@ def list_prompts() -> list[str]:
 
 
 def list_versions(prompt_name: str) -> list[str]:
-    """Return all available version strings for a prompt, sorted from oldest to newest.
+    """Retorna as versões disponíveis de um prompt, da mais antiga para a mais nova.
 
-    JSON files whose name is ``"metadatajson"`` (no dot) are excluded.
+    Arquivos JSON cujo nome é ``"metadatajson"`` (sem ponto) são excluídos.
     """
     prompt_dir = get_prompt_dir(prompt_name)
 
@@ -113,11 +114,11 @@ def list_versions(prompt_name: str) -> list[str]:
 def load_prompt_specific_version(
     prompt_name: str, version: str | None = None
 ) -> dict | None:
-    """Load and return the JSON data for a specific prompt version.
+    """Carrega e retorna os dados JSON de uma versão específica do prompt.
 
-    If no version is given, the active version from metadata is used.
-    Falls back to the latest available version if no active version is set.
-    Returns ``None`` if the prompt or version does not exist.
+    Se nenhuma versão for informada, usa a versão ativa dos metadados.
+    Recorre à versão mais recente disponível se não houver versão ativa.
+    Retorna ``None`` se o prompt ou a versão não existir.
     """
     ensure_prompts_dir()
 
@@ -150,10 +151,10 @@ def create_prompt_version(
     temperature: float | None = None,
     reasoning_effort: str | None = None,
 ) -> str:
-    """Create a new version of a prompt and set it as the active version.
+    """Cria uma nova versão de um prompt e a define como versão ativa.
 
-    The previous active version is automatically marked as deprecated.
-    Returns the newly created version string.
+    A versão ativa anterior é automaticamente marcada como deprecated.
+    Retorna a string da versão recém-criada.
     """
     ensure_prompts_dir()
 
@@ -177,13 +178,13 @@ def create_prompt_version(
         "llm_reasoning_effort": reasoning_effort,
         "owner": owner,
         "change_note": change_note,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "status": "active",
     }
 
     version_file = prompt_dir / f"{prompt_version}.json"
     with open(version_file, "w") as file:
-        json.dump(prompts_data, file, indent=2)
+        json.dump(prompts_data, file, indent=2, ensure_ascii=False)
 
     metadata = load_metadata()
     if prompt_name not in metadata["active_versions"]:
@@ -196,7 +197,7 @@ def create_prompt_version(
                 old_version_data["status"] = "deprecated"
                 old_file = prompt_dir / f"{version_active}.json"
                 with open(old_file, "w") as file:
-                    json.dump(old_version_data, file, indent=2)
+                    json.dump(old_version_data, file, indent=2, ensure_ascii=False)
 
         metadata["active_versions"][prompt_name] = prompt_version
 
@@ -208,19 +209,19 @@ def create_prompt_version(
 
 
 def get_active_version(prompt_name: str) -> str | None:
-    """Return the currently active version string for a prompt.
+    """Retorna a versão atualmente ativa de um prompt.
 
-    Returns ``None`` if none is set.
+    Retorna ``None`` se nenhuma estiver definida.
     """
     metadata = load_metadata()
     return metadata["active_versions"].get(prompt_name)
 
 
 def active_version(prompt_name: str, version: str) -> bool:
-    """Set a specific version as the active version for a prompt.
+    """Define uma versão específica como ativa para um prompt.
 
-    The previously active version is marked as deprecated.
-    Returns ``True`` on success, ``False`` if the requested version does not exist.
+    A versão anteriormente ativa é marcada como deprecated.
+    Retorna ``True`` em caso de sucesso, ``False`` se a versão solicitada não existir.
     """
     ensure_prompts_dir()
 
@@ -238,12 +239,12 @@ def active_version(prompt_name: str, version: str) -> bool:
             old_data["status"] = "deprecated"
             old_file = get_prompt_dir(prompt_name) / f"{old_version}.json"
             with open(old_file, "w") as file:
-                json.dump(old_data, file, indent=2)
+                json.dump(old_data, file, indent=2, ensure_ascii=False)
 
     version_data["status"] = "active"
     version_file = get_prompt_dir(prompt_name) / f"{version}.json"
     with open(version_file, "w") as file:
-        json.dump(version_data, file, indent=2)
+        json.dump(version_data, file, indent=2, ensure_ascii=False)
 
     metadata["active_versions"][prompt_name] = version
     save_metadata(metadata)
@@ -251,10 +252,10 @@ def active_version(prompt_name: str, version: str) -> bool:
 
 
 def deprecate_version(prompt_name: str, version: str) -> bool:
-    """Mark a version as deprecated without changing the active version.
+    """Marca uma versão como deprecated sem alterar a versão ativa.
 
-    The currently active version cannot be deprecated directly.
-    Returns ``True`` on success, ``False`` if the version does not exist or is active.
+    A versão atualmente ativa não pode ser depreciada diretamente.
+    Retorna ``True`` em caso de sucesso, ``False`` se não existir ou estiver ativa.
     """
     ensure_prompts_dir()
 
@@ -270,15 +271,15 @@ def deprecate_version(prompt_name: str, version: str) -> bool:
     version_file = get_prompt_dir(prompt_name) / f"{version}.json"
 
     with open(version_file, "w") as file:
-        json.dump(version_data, file, indent=2)
+        json.dump(version_data, file, indent=2, ensure_ascii=False)
 
     return True
 
 
 def get_all_prompt_version(prompt_name: str) -> list[dict]:
-    """Return all versions of a prompt as loaded JSON dicts.
+    """Retorna todas as versões de um prompt como dicionários JSON carregados.
 
-    Sorted by creation date (newest first).
+    Ordenadas por data de criação (mais recente primeiro).
     """
     ensure_prompts_dir()
 

@@ -63,7 +63,6 @@ $$ LANGUAGE plpgsql;
 ALTER TABLE message_queue ENABLE ROW LEVEL SECURITY;
 ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "user" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_channel ENABLE ROW LEVEL SECURITY;
 ALTER TABLE category ENABLE ROW LEVEL SECURITY;
 ALTER TABLE recurring_expense ENABLE ROW LEVEL SECURITY;
 ALTER TABLE expense ENABLE ROW LEVEL SECURITY;
@@ -77,12 +76,6 @@ CREATE POLICY user_isolation_policy ON "user"
     FOR ALL
     USING (id = current_app_user_id())
     WITH CHECK (id = current_app_user_id());
-
--- Canais do usuario
-CREATE POLICY user_channel_isolation_policy ON user_channel
-    FOR ALL
-    USING (user_id = current_app_user_id())
-    WITH CHECK (user_id = current_app_user_id());
 
 -- Fila de mensagens
 CREATE POLICY message_queue_isolation_policy ON message_queue

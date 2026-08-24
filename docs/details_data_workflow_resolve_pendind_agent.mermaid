@@ -1,0 +1,48 @@
+```mermaid
+flowchart TD
+    A["resolve_pending_expenses(state)"] --> B["Lê do estado<br/>pending_expenses<br/>expired_pending_expenses<br/>user_id, user_timezone, message_id<br/>última mensagem"]
+
+    B --> C{"Há pendências ativas?"}
+
+    C -->|Não; havia expirada| D["Retorna orientação:<br/>envie o gasto completo"]
+    C -->|Não; nenhuma expirada| E["Retorna:<br/>não há pendência ativa"]
+    C -->|Sim| F{"Há exatamente uma pendência<br/>e a mensagem contém<br/>cancelar / desisto?"}
+
+    F -->|Sim| G["Cancelamento determinístico<br/>sem LLM e sem insert"]
+    G --> G1["Retorna estado limpo:<br/>pending_expenses = []<br/>needs_clarification = false"]
+
+    F -->|Não| H["list_available_categories(user_id)"]
+    H --> I{"Categorias carregadas?"}
+    I -->|Não| J["Mantém todas as pendências<br/>e repete pergunta segura"]
+    I -->|Sim| K["Obtém now no fuso do usuário<br/>e somente a última mensagem"]
+
+    K --> L["Para cada pendência ativa"]
+    L --> M["Monta contexto isolado:<br/>rascunho estruturado + now + categorias"]
+    M --> N["LLM retorna<br/>status: completed | cancelled | not_applicable<br/>expense opcional"]
+    N --> O["Seleciona somente decisões<br/>completed ou cancelled"]
+
+    O --> P{"Exatamente uma<br/>pendência foi selecionada?"}
+    P -->|Não| Q["Mantém todas as pendências<br/>Se houver mais de uma,<br/>pede identificação específica"]
+    P -->|Sim| R["Separa:<br/>pendência selecionada<br/>+ pendências restantes"]
+
+    R --> S{"status = cancelled?"}
+    S -->|Sim| T["Remove somente a selecionada<br/>Mantém as demais"]
+    T --> U["Retorna confirmação<br/>de cancelamento"]
+
+    S -->|Não: completed| V{"expense foi retornado?"}
+    V -->|Não| Q
+    V -->|Sim| W["_merge_resolved_expense"]
+
+    W --> X{"Campos já confirmados<br/>foram preservados?"}
+    X -->|Não| Y["Mantém a pendência<br/>e repete sua pergunta"]
+    X -->|Sim| Z["resolve_extracted_expenses<br/>validação determinística:<br/>valor, data, categoria,<br/>pagamento e parcelas"]
+
+    Z --> AA{"Gerou gasto válido?"}
+    AA -->|Não| AB["Mantém pendência<br/>e pede esclarecimento"]
+    AA -->|Sim| AC["insert_expenses<br/>source_message_id = message_id<br/>da resposta complementar"]
+
+    AC --> AD{"Insert funcionou?"}
+    AD -->|Não| AE["Mantém pendência<br/>para tentativa posterior"]
+    AD -->|Sim| AF["Remove somente a pendência resolvida<br/>Mantém pendências restantes"]
+    AF --> AG["Retorna confirmação do gasto"]
+```
