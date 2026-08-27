@@ -45,7 +45,7 @@ async def _database_is_available() -> bool:
 @pytest_asyncio.fixture(autouse=True)
 async def require_database():
     if not await _database_is_available():
-        pytest.skip(f"Postgres indisponível em {settings.database_url}")
+        pytest.skip("Postgres indisponível; verifique DATABASE_URL.")
     yield
     await close_pool()
 

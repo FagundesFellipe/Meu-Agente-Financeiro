@@ -111,7 +111,6 @@ class Settings(BaseSettings):
     rate_limit_per_hour: int = 30
 
     # --- TWILIO ---
-    validate_twilio_signature: bool = False
     twilio_auth_token: str = ""
     twilio_webhook_url: str = ""
 

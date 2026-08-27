@@ -9,7 +9,10 @@ from decimal import Decimal
 
 import pytest
 
-from financial_agent.agent.tools.amount_parser import AmountParseError, parse_amount
+from financial_agent.agent.tools.amount_parser import (
+    AmountParseError,
+    parse_expense_amount,
+)
 
 
 @pytest.mark.parametrize(
@@ -28,7 +31,7 @@ from financial_agent.agent.tools.amount_parser import AmountParseError, parse_am
     ],
 )
 def test_parse_numeric_formats(raw: str, expected: str):
-    assert parse_amount(raw) == Decimal(expected)
+    assert parse_expense_amount(raw) == Decimal(expected)
 
 
 @pytest.mark.parametrize(
@@ -49,13 +52,13 @@ def test_parse_numeric_formats(raw: str, expected: str):
 )
 def test_rejects_ambiguous_or_invalid(raw: str):
     with pytest.raises(AmountParseError):
-        parse_amount(raw)
+        parse_expense_amount(raw)
 
 
 def test_result_is_always_two_decimal_places():
-    assert str(parse_amount("35")) == "35.00"
-    assert str(parse_amount("7,5")) == "7.50"
+    assert str(parse_expense_amount("35")) == "35.00"
+    assert str(parse_expense_amount("7,5")) == "7.50"
 
 
 def test_never_returns_float():
-    assert isinstance(parse_amount("19,99"), Decimal)
+    assert isinstance(parse_expense_amount("19,99"), Decimal)

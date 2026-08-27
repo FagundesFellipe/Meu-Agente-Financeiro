@@ -70,30 +70,27 @@ async def validate_twilio_signature(request: Request) -> None:
     """Valida a assinatura X-Twilio-Signature com HMAC-SHA1 (SDK oficial).
 
     Usa o RequestValidator do SDK do Twilio para validação criptográfica.
-    Quando habilitada (VALIDATE_TWILIO_SIGNATURE=true), rejeita com 403
-    qualquer request sem assinatura válida.
+    A validação é obrigatória: sem ``TWILIO_AUTH_TOKEN`` configurado, o
+    endpoint falha fechado e não processa a requisição.
 
     A URL usada na validação é reconstruída via TWILIO_WEBHOOK_URL
     (necessário atrás de proxy/túnel como cloudflared) ou do request.
 
     Raises:
         HTTPException 403: Se a assinatura é inválida ou ausente.
-        HTTPException 500: Se TWILIO_AUTH_TOKEN não está configurado.
+        HTTPException 503: Se TWILIO_AUTH_TOKEN não está configurado.
     """
-    if not settings.validate_twilio_signature:
-        return
+    if not settings.twilio_auth_token:
+        logger.error("twilio_auth_token_not_configured")
+        raise HTTPException(
+            status_code=503,
+            detail="Twilio webhook authentication is not configured",
+        )
 
     signature = request.headers.get("X-Twilio-Signature")
     if not signature:
         logger.warning("twilio_signature_missing")
         raise HTTPException(status_code=403, detail="Missing Twilio signature")
-
-    if not settings.twilio_auth_token:
-        logger.error("twilio_auth_token_not_configured")
-        raise HTTPException(
-            status_code=500,
-            detail="Twilio auth token not configured",
-        )
 
     url = build_validation_url(request)
 
@@ -121,9 +118,14 @@ async def validate_telegram_secret_token(request: Request) -> None:
 
     Raises:
         HTTPException 403: Se o token é inválido ou ausente.
+        HTTPException 503: Se TELEGRAM_WEBHOOK_SECRET_TOKEN não está configurado.
     """
     if not settings.telegram_webhook_secret_token:
-        return
+        logger.error("telegram_webhook_secret_token_not_configured")
+        raise HTTPException(
+            status_code=503,
+            detail="Telegram webhook authentication is not configured",
+        )
 
     token = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
     if not token:
