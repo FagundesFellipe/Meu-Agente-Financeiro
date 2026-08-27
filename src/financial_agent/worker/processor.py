@@ -79,7 +79,10 @@ async def _process_claimed_message(message: MessageQueue) -> None:
                 "channel": message.channel,
                 "message_id": message.id,
             },
-            config={"configurable": {"thread_id": message.thread_id}},
+            config={
+                "configurable": {"thread_id": message.thread_id},
+                "metadata": {"thread_id": str(message.thread_id)},
+            },
         )
         response_text = result["messages"][-1].content
 

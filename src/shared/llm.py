@@ -47,6 +47,12 @@ class ModelId(StrEnum):
     # --- DeepSeek ---
     DEEPSEEK_V4_FLASH = "deepseek/deepseek-v4-flash"
 
+    # --- MiniMax ---
+    MINI_MAX_M2_7 = "minimax/minimax-m2.7:free"
+
+    # --- GLM 5.2 ---
+    GLM_5_2 = "z-ai/glm-5.2:free"
+
 
 def get_model_id(identifier: ModelId | str) -> str:
     """Retorna o ID completo do modelo no formato provider/modelo.
