@@ -6,7 +6,10 @@ resolução de categoria fora do modelo é o que garante a regra do PRD de que
 o LLM nunca calcula nem inventa dado financeiro.
 """
 
-from financial_agent.agent.tools.amount_parser import AmountParseError, parse_amount
+from financial_agent.agent.tools.amount_parser import (
+    AmountParseError,
+    parse_expense_amount,
+)
 from financial_agent.agent.tools.calendar import (
     DateResolutionError,
     resolve_occurred_at,
@@ -23,7 +26,7 @@ __all__ = [
     "CategoryResolutionError",
     "DateResolutionError",
     "normalize_payment_method",
-    "parse_amount",
+    "parse_expense_amount",
     "resolve_category",
     "resolve_occurred_at",
     "user_now",

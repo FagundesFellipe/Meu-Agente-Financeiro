@@ -13,6 +13,7 @@ from financial_agent.agent.ReAct.add_new_expenses_agent import (
     resolve_extracted_expenses,
 )
 from financial_agent.agent.state_graph import (
+    ExpenseDetails,
     ExtractedExpense,
     GraphState,
     PendingExpense,
@@ -128,11 +129,67 @@ def _response_for_unmatched_pending(pending_expenses: list[PendingExpense]) -> s
     return format_pending_questions(pending_expenses)
 
 
-def _pending_resolution_route(
-    route: PendingExpenseResolutionRoute,
-) -> dict[str, PendingExpenseResolutionRoute]:
-    """Expõe ao grafo o próximo ramo após tratar uma pendência."""
-    return {"pending_expense_resolution_route": route}
+def _resolution_state(
+    *,
+    pending: list[PendingExpense],
+    needs_clarification: bool,
+    route: PendingExpenseResolutionRoute = "finalize_response",
+    clarification_message: str | None = None,
+    response_text: str | None = None,
+    expense_details: list[ExpenseDetails] | None = None,
+) -> dict:
+    """Delta de estado devolvido ao grafo por este nó — o contrato num lugar só.
+
+    Todo retorno de :func:`resolve_pending_expenses` passa por aqui, então as
+    chaves e seus defaults ficam definidos uma vez. ``expired_pending_expenses``
+    é sempre zerado: pendências expiradas já foram tratadas antes deste nó.
+    ``response_text`` só entra no dicionário quando informado — o ramo que
+    redireciona para ``add_new_expenses_agent`` deixa a resposta para o nó
+    seguinte montar.
+    """
+    delta: dict[str, Any] = {
+        "pending_expense_resolution_route": route,
+        "pending_expenses": pending,
+        "expired_pending_expenses": [],
+        "needs_clarification": needs_clarification,
+        "clarification_message": clarification_message,
+        "expense_details": expense_details or [],
+    }
+    if response_text is not None:
+        delta["response_text"] = response_text
+    return delta
+
+
+def _finalize_cleared(response_text: str) -> dict:
+    """Encerra o fluxo sem nenhuma pendência restante."""
+    return _resolution_state(
+        pending=[], needs_clarification=False, response_text=response_text
+    )
+
+
+def _keep_all_pending(pending: list[PendingExpense], question: str) -> dict:
+    """Mantém as pendências como estão e repete a mesma pergunta ao usuário."""
+    return _resolution_state(
+        pending=pending,
+        needs_clarification=True,
+        clarification_message=question,
+        response_text=question,
+    )
+
+
+def _finalize_one_resolved(
+    remaining_pending: list[PendingExpense],
+    lead_text: str,
+    expense_details: list[ExpenseDetails] | None = None,
+) -> dict:
+    """Fecha depois de resolver exatamente um rascunho, anexando a próxima pergunta."""
+    return _resolution_state(
+        pending=remaining_pending,
+        needs_clarification=bool(remaining_pending),
+        clarification_message=format_pending_questions(remaining_pending) or None,
+        response_text=_response_with_remaining_pending(lead_text, remaining_pending),
+        expense_details=expense_details,
+    )
 
 
 def _response_with_remaining_pending(
@@ -187,40 +244,20 @@ async def resolve_pending_expenses(state: GraphState) -> dict:
     user_id = state["user_id"]
 
     if not active_pending:
-        response_text = (
+        return _finalize_cleared(
             format_expired_pending_message() if expired_pending else _NO_PENDING_MESSAGE
         )
-        return {
-            **_pending_resolution_route("finalize_response"),
-            "pending_expenses": [],
-            "expired_pending_expenses": [],
-            "needs_clarification": False,
-            "clarification_message": None,
-            "expense_details": [],
-            "response_text": response_text,
-        }
 
     if _is_unambiguous_cancellation(state, active_pending):
-        return {
-            **_pending_resolution_route("finalize_response"),
-            "pending_expenses": [],
-            "expired_pending_expenses": [],
-            "needs_clarification": False,
-            "clarification_message": None,
-            "expense_details": [],
-            "response_text": _CANCELLED_MESSAGE,
-        }
+        return _finalize_cleared(_CANCELLED_MESSAGE)
 
     try:
         categories = await list_available_categories(user_id)
     except Exception:
         logger.exception("pending_categories_load_failed", user_id)
-        return {
-            **_pending_resolution_route("finalize_response"),
-            "pending_expenses": active_pending,
-            "needs_clarification": True,
-            "response_text": _response_for_unmatched_pending(active_pending),
-        }
+        return _keep_all_pending(
+            active_pending, _response_for_unmatched_pending(active_pending)
+        )
 
     now = tools_calendar.user_now(state["user_timezone"])
     last_message = _last_user_message(state)
@@ -235,82 +272,39 @@ async def resolve_pending_expenses(state: GraphState) -> dict:
     ]
 
     if decisions and all(decision.status == "new_expense" for decision in decisions):
-        return {
-            **_pending_resolution_route("add_new_expenses_agent"),
-            "pending_expenses": active_pending,
-            "expired_pending_expenses": [],
-            "needs_clarification": True,
-            "clarification_message": None,
-            "expense_details": [],
-        }
+        return _resolution_state(
+            route="add_new_expenses_agent",
+            pending=active_pending,
+            needs_clarification=True,
+        )
 
     if len(selected) != 1:
-        response_text = _response_for_unmatched_pending(active_pending)
-        return {
-            **_pending_resolution_route("finalize_response"),
-            "pending_expenses": active_pending,
-            "expired_pending_expenses": [],
-            "needs_clarification": True,
-            "clarification_message": response_text,
-            "expense_details": [],
-            "response_text": response_text,
-        }
+        return _keep_all_pending(
+            active_pending, _response_for_unmatched_pending(active_pending)
+        )
 
     pending, decision = selected[0]
     remaining_pending = [item for item in active_pending if item.id != pending.id]
     if decision.status == "cancelled":
-        return {
-            **_pending_resolution_route("finalize_response"),
-            "pending_expenses": remaining_pending,
-            "expired_pending_expenses": [],
-            "needs_clarification": bool(remaining_pending),
-            "clarification_message": (
-                format_pending_questions(remaining_pending) or None
-            ),
-            "expense_details": [],
-            "response_text": _response_with_remaining_pending(
-                _CANCELLED_MESSAGE, remaining_pending
-            ),
-        }
+        return _finalize_one_resolved(remaining_pending, _CANCELLED_MESSAGE)
 
     if decision.expense is None:
-        response_text = _response_for_unmatched_pending(active_pending)
-        return {
-            **_pending_resolution_route("finalize_response"),
-            "pending_expenses": active_pending,
-            "expired_pending_expenses": [],
-            "needs_clarification": True,
-            "clarification_message": response_text,
-            "expense_details": [],
-            "response_text": response_text,
-        }
+        return _keep_all_pending(
+            active_pending, _response_for_unmatched_pending(active_pending)
+        )
 
     completed_expense = _merge_resolved_expense(pending, decision.expense)
     if completed_expense is None:
-        response_text = pending.clarification_message
-        return {
-            **_pending_resolution_route("finalize_response"),
-            "pending_expenses": active_pending,
-            "expired_pending_expenses": [],
-            "needs_clarification": True,
-            "clarification_message": response_text,
-            "expense_details": [],
-            "response_text": response_text,
-        }
+        return _keep_all_pending(active_pending, pending.clarification_message)
+
     outcome = resolve_extracted_expenses(
         [completed_expense], categories, state["user_timezone"], now
     )
     if not outcome.expenses:
-        response_text = decision.clarification_message or pending.clarification_message
-        return {
-            **_pending_resolution_route("finalize_response"),
-            "pending_expenses": active_pending,
-            "expired_pending_expenses": [],
-            "needs_clarification": True,
-            "clarification_message": response_text,
-            "expense_details": [],
-            "response_text": response_text,
-        }
+        return _keep_all_pending(
+            active_pending,
+            decision.clarification_message or pending.clarification_message,
+        )
 
     try:
         records: list[ExpenseRecord] = await insert_expenses(
@@ -320,26 +314,17 @@ async def resolve_pending_expenses(state: GraphState) -> dict:
         )
     except Exception:
         logger.exception("pending_expense_insert_failed", pending_id=pending.id)
-        return {
-            **_pending_resolution_route("finalize_response"),
-            "pending_expenses": active_pending,
-            "expired_pending_expenses": [],
-            "needs_clarification": True,
-            "clarification_message": pending.clarification_message,
-            "expense_details": [],
-            "response_text": (
+        return _resolution_state(
+            pending=active_pending,
+            needs_clarification=True,
+            clarification_message=pending.clarification_message,
+            response_text=(
                 "Não consegui salvar esse gasto agora. Pode tentar novamente?"
             ),
-        }
+        )
 
-    return {
-        **_pending_resolution_route("finalize_response"),
-        "pending_expenses": remaining_pending,
-        "expired_pending_expenses": [],
-        "needs_clarification": bool(remaining_pending),
-        "clarification_message": format_pending_questions(remaining_pending) or None,
-        "expense_details": outcome.expenses,
-        "response_text": _response_with_remaining_pending(
-            format_confirmation(records), remaining_pending
-        ),
-    }
+    return _finalize_one_resolved(
+        remaining_pending,
+        format_confirmation(records),
+        expense_details=outcome.expenses,
+    )

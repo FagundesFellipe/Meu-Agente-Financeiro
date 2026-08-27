@@ -70,7 +70,10 @@ async def _process_sync_message(
             "phone_number": external_id,
             "channel": channel,
         },
-        config={"configurable": {"thread_id": thread_id, "user_id": external_id}},
+        config={
+            "configurable": {"thread_id": thread_id, "user_id": external_id},
+            "metadata": {"thread_id": str(thread_id)},
+        },
     )
 
     response_text = result["messages"][-1].content

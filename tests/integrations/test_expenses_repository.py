@@ -40,7 +40,7 @@ async def _database_is_available() -> bool:
 @pytest_asyncio.fixture(autouse=True)
 async def require_database():
     if not await _database_is_available():
-        pytest.skip(f"Postgres indisponível em {settings.database_url}")
+        pytest.skip("Postgres indisponível; verifique DATABASE_URL.")
     yield
     await close_pool()
 
@@ -82,8 +82,8 @@ async def _enqueue_message(user_id: UUID) -> UUID:
         cur = await conn.execute(
             """
             INSERT INTO message_queue
-                (user_id, phone_number, agent_id, thread_id, incoming_message)
-            VALUES (%s, 'test', 'add_new_expenses', %s, 'gastei 35 no almoço')
+                (channel,user_id, phone_number, agent_id, thread_id, incoming_message)
+            VALUES ('telegram', %s, 'test', 'add_new_expenses', %s, 'gastei 35 no almoço')
             RETURNING id
             """,
             (user_id, f"thread-{user_id}"),

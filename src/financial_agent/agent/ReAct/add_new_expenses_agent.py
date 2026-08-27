@@ -316,7 +316,7 @@ def resolve_extracted_expenses(
     for candidate in extracted:
         label = candidate.description or "gasto"
         try:
-            amount = amount_parser.parse_amount(candidate.amount_raw)
+            amount = amount_parser.parse_expense_amount(candidate.amount_raw)
 
             occurred_at = tools_calendar.resolve_occurred_at(
                 date_hint=candidate.date_hint,

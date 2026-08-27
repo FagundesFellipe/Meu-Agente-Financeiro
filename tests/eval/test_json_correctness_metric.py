@@ -1,151 +1,78 @@
-import json
-
 import pytest
-from deepeval.test_case import LLMTestCase
+from deepeval.metrics import GEval, JsonCorrectnessMetric
+from deepeval.test_case import LLMTestCase, SingleTurnParams
+from pydantic import ValidationError
 
-from eval.json_correctness_metric import (
-    ExpenseExtractionCorrectnessMetric,
-    build_json_correctness_metric,
-    build_value_correctness_metric,
-)
-
-
-def _case(actual, expected) -> LLMTestCase:
-    return LLMTestCase(
-        input="gasto de teste",
-        actual_output=json.dumps(actual, ensure_ascii=False),
-        expected_output=json.dumps(expected, ensure_ascii=False),
-    )
-
-
-def _expense(**overrides) -> dict:
-    payload = {
-        "description": "almoço",
-        "amount_raw": "35",
-        "installments": None,
-        "amount_is_total": False,
-        "date_hint": None,
-        "time_hint": None,
-        "payment_method_hint": None,
-        "category_hint": "Alimentação",
-        "confidence": 0.95,
-    }
-    payload.update(overrides)
-    return payload
-
-
-def _result(**overrides) -> dict:
-    payload = {
-        "expenses": [_expense()],
-        "needs_clarification": False,
-        "clarification_message": None,
-    }
-    payload.update(overrides)
-    return payload
-
-
-class TestExpenseExtractionCorrectnessMetric:
-    @pytest.fixture
-    def metric(self):
-        return ExpenseExtractionCorrectnessMetric()
-
-    def test_perfect_match_scores_one(self, metric):
-        expected = _result()
-        metric.measure(_case(expected, expected))
-        assert metric.score == 1.0
-        assert metric.is_successful()
-
-    def test_wrong_amount_lowers_score(self, metric):
-        actual = _result(expenses=[_expense(amount_raw="40")])
-        expected = _result()
-        metric.measure(_case(actual, expected))
-        # 0.25 de peso * 0 = 0.25 a menos no score do gasto; gasto vale 80%.
-        assert metric.score == pytest.approx(0.80, abs=0.05)
-
-    def test_wrong_category_lowers_score(self, metric):
-        actual = _result(expenses=[_expense(category_hint="Transporte")])
-        expected = _result()
-        metric.measure(_case(actual, expected))
-        # 0.10 de peso * 0 = 0.10 a menos no score do gasto; gasto vale 80%.
-        assert metric.score == pytest.approx(0.92, abs=0.05)
-
-    def test_amount_formatting_differences_are_normalized(self, metric):
-        actual = _result(expenses=[_expense(amount_raw="35,00")])
-        expected = _result()
-        metric.measure(_case(actual, expected))
-        assert metric.score == 1.0
-
-    def test_description_similarity_gives_partial_credit(self, metric):
-        actual = _result(expenses=[_expense(description="almoço de hoje")])
-        expected = _result()
-        metric.measure(_case(actual, expected))
-        assert 0.0 < metric.score < 1.0
-
-    def test_missing_expense_penalizes_size_difference(self, metric):
-        actual = _result(expenses=[])
-        expected = _result(
-            expenses=[
-                _expense(),
-                _expense(
-                    description="táxi",
-                    amount_raw="40",
-                    category_hint="Transporte",
-                ),
-            ]
-        )
-        metric.measure(_case(actual, expected))
-        assert metric.score == 0.0
-
-    def test_clarification_flag_match_with_different_message(self, metric):
-        actual = _result(
-            expenses=[],
-            needs_clarification=True,
-            clarification_message="Qual foi o valor do almoço?",
-        )
-        expected = _result(
-            expenses=[],
-            needs_clarification=True,
-            clarification_message="Quanto você gastou no almoço?",
-        )
-        metric.measure(_case(actual, expected))
-        # 20% pelo flag + 20% * similaridade da mensagem + 60% * expenses vazio.
-        assert 0.2 < metric.score < 1.0
-
-    def test_wrong_needs_clarification_flag_hurts_score(self, metric):
-        actual = _result(
-            expenses=[_expense()],
-            needs_clarification=False,
-            clarification_message=None,
-        )
-        expected = _result(
-            expenses=[],
-            needs_clarification=True,
-            clarification_message="Qual foi o valor?",
-        )
-        metric.measure(_case(actual, expected))
-        assert metric.score < 0.5
-
-    def test_multiple_expenses_are_scored_together(self, metric):
-        actual = _result(
-            expenses=[
-                _expense(description="café", amount_raw="25"),
-                _expense(
-                    description="táxi",
-                    amount_raw="40",
-                    category_hint="Transporte",
-                ),
-            ]
-        )
-        expected = actual
-        metric.measure(_case(actual, expected))
-        assert metric.score == 1.0
+from eval import json_correctness_metric
+from financial_agent.agent.state_graph import AddExpensesResult
 
 
 class TestMetricBuilders:
-    def test_build_json_correctness_metric_returns_metric(self):
-        metric = build_json_correctness_metric()
-        assert metric.__name__ == "JSON Correctness"
+    def test_build_json_correctness_metric_configures_schema_metric(self):
+        metric = json_correctness_metric.build_json_correctness_metric()
 
-    def test_build_value_correctness_metric_returns_metric(self):
-        metric = build_value_correctness_metric()
-        assert metric.__name__ == "Expense Extraction Correctness"
+        assert isinstance(metric, JsonCorrectnessMetric)
+        assert metric.expected_schema == AddExpensesResult(expenses=[])
+        assert metric.strict_mode is True
+        assert metric.async_mode is True
+        assert metric.verbose_mode is True
+
+    @pytest.mark.parametrize(
+        ("actual_output", "expected_score"),
+        [
+            (
+                '{"expenses": [], "pending_expenses": [], '
+                '"needs_clarification": false, "clarification_message": null}',
+                1,
+            ),
+            ('{"expenses": "não é uma lista"}', 0),
+        ],
+    )
+    def test_json_metric_validates_real_output(self, actual_output, expected_score):
+        metric = json_correctness_metric.build_json_correctness_metric()
+        # A validação estrutural é local; evitar a justificativa LLM mantém o
+        # teste determinístico e sem chamadas externas.
+        metric.include_reason = False
+
+        score = metric.measure(
+            LLMTestCase(input="gasto de teste", actual_output=actual_output)
+        )
+
+        assert score == expected_score
+        assert metric.score == expected_score
+
+    def test_add_expenses_result_rejects_invalid_json(self):
+        with pytest.raises(ValidationError):
+            AddExpensesResult.model_validate_json('{"expenses": "inválido"}')
+
+    def test_build_correctness_metrics_configures_semantic_geval(self):
+        metric = json_correctness_metric.build_correctness_metrics()
+
+        assert isinstance(metric, GEval)
+        assert metric.name == "Field Correctness"
+        assert metric.threshold == 0.7
+        assert metric.async_mode is True
+        assert metric.verbose_mode is True
+        assert metric.evaluation_params == [
+            SingleTurnParams.INPUT,
+            SingleTurnParams.ACTUAL_OUTPUT,
+            SingleTurnParams.EXPECTED_OUTPUT,
+        ]
+        assert "equivalência SEMÂNTICA" in metric.criteria
+        assert "ignore completamente" in metric.criteria
+        assert "date_hint" in metric.criteria
+        assert "omitam gastos" in metric.criteria
+        assert "inventem gastos inexistentes" in metric.criteria
+
+        evaluation_steps = " ".join(metric.evaluation_steps)
+        assert len(metric.evaluation_steps) == 6
+        assert "Ignore completamente o campo date_hint" in evaluation_steps
+        assert "Verifique a ambiguidade" in evaluation_steps
+
+        assert [rubric.score_range for rubric in metric.rubric] == [
+            (0, 2),
+            (3, 5),
+            (6, 8),
+            (9, 10),
+        ]
+        assert "omissão de um gasto" in metric.rubric[0].expected_outcome

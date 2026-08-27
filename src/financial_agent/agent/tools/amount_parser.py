@@ -15,42 +15,50 @@ responsabilidade do LLM, não deste módulo.
 import re
 from decimal import Decimal, InvalidOperation
 
-__all__ = ["AmountParseError", "parse_amount"]
+__all__ = ["AmountParseError", "parse_expense_amount"]
 
 
 class AmountParseError(ValueError):
     """O valor informado não pôde ser convertido com segurança."""
 
 
-_NUMERIC = re.compile(r"\d[\d.,]*")
+_NUMERIC_AMOUNT_FRAGMENT_PATTERN = re.compile(r"\d[\d.,]*")
 
 
-def _parse_numeric(token: str) -> Decimal:
+def _parse_numeric(numeric_amount_text_extracted: str) -> Decimal:
     """Converte um token numérico respeitando as convenções pt-BR e en-US."""
-    has_comma = "," in token
-    has_dot = "." in token
+    has_comma = "," in numeric_amount_text_extracted
+    has_dot = "." in numeric_amount_text_extracted
 
     if has_comma and has_dot:
-        # O separador decimal é o que aparece por último.
-        if token.rfind(",") > token.rfind("."):
-            token = token.replace(".", "").replace(",", ".")
+        if numeric_amount_text_extracted.rfind(
+            ","
+        ) > numeric_amount_text_extracted.rfind("."):
+            numeric_amount_text_extracted = numeric_amount_text_extracted.replace(
+                ".", ""
+            ).replace(",", ".")
         else:
-            token = token.replace(",", "")
+            numeric_amount_text_extracted = numeric_amount_text_extracted.replace(
+                ",", ""
+            )
     elif has_comma:
-        token = token.replace(",", ".")
+        numeric_amount_text_extracted = numeric_amount_text_extracted.replace(",", ".")
     elif has_dot:
-        # "1.234" é milhar; "12.90" é decimal. Decide pelo tamanho do sufixo.
-        head, _, tail = token.rpartition(".")
+        head, _, tail = numeric_amount_text_extracted.rpartition(".")
         if len(tail) == 3 and head:
-            token = token.replace(".", "")
+            numeric_amount_text_extracted = numeric_amount_text_extracted.replace(
+                ".", ""
+            )
 
     try:
-        return Decimal(token)
+        return Decimal(numeric_amount_text_extracted)
     except InvalidOperation as exc:
-        raise AmountParseError(f"Valor numérico inválido: {token!r}") from exc
+        raise AmountParseError(
+            f"Valor numérico inválido: {numeric_amount_text_extracted!r}"
+        ) from exc
 
 
-def parse_amount(raw: str) -> Decimal:
+def parse_expense_amount(raw: str) -> Decimal:
     """Converte o valor estruturado pelo LLM em ``Decimal`` positivo com 2 casas.
 
     Args:
@@ -67,22 +75,24 @@ def parse_amount(raw: str) -> Decimal:
     if not raw or not raw.strip():
         raise AmountParseError("Valor vazio")
 
-    text = raw.strip()
+    normalized_amount_text = raw.strip()
 
     # Sinal negativo: rejeita antes que vire positivo silenciosamente.
-    if re.search(r"-\s*\d", text):
+    if re.search(r"-\s*\d", normalized_amount_text):
         raise AmountParseError(f"Valor negativo não é aceito: {raw!r}")
 
-    numeric_tokens = _NUMERIC.findall(text)
-    if len(numeric_tokens) > 1:
+    numeric_amount_matches = _NUMERIC_AMOUNT_FRAGMENT_PATTERN.findall(
+        normalized_amount_text
+    )
+    if len(numeric_amount_matches) > 1:
         raise AmountParseError(f"Mais de um valor numérico em {raw!r}")
 
-    if not numeric_tokens:
+    if not numeric_amount_matches:
         raise AmountParseError(f"Não foi possível interpretar o valor: {raw!r}")
 
-    value = _parse_numeric(numeric_tokens[0])
+    decimal_amount = _parse_numeric(numeric_amount_matches[0])
 
-    if value <= 0:
+    if decimal_amount <= 0:
         raise AmountParseError(f"Valor precisa ser maior que zero: {raw!r}")
 
-    return value.quantize(Decimal("0.01"))
+    return decimal_amount.quantize(Decimal("0.01"))

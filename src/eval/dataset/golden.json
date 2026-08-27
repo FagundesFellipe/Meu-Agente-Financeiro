@@ -2,231 +2,246 @@
   {
     "name": "gasto-simples-almoco",
     "input": "Gastei 35 reais no almoço",
-    "expected_output": "{\"expenses\":[{\"description\":\"almoço\",\"amount_raw\":\"35\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Alimentação\",\"confidence\":0.95}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"almoço\",\"amount_raw\":\"35\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Alimentação\",\"confidence\":0.95}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-com-categoria-transporte",
     "input": "Paguei 42,50 de Uber ontem",
-    "expected_output": "{\"expenses\":[{\"description\":\"Uber\",\"amount_raw\":\"42,50\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Transporte\",\"confidence\":0.94}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"Uber\",\"amount_raw\":\"42,50\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Transporte\",\"confidence\":0.94}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-supermercado",
     "input": "Fiz compras no mercado, deu 287,33",
-    "expected_output": "{\"expenses\":[{\"description\":\"compras no mercado\",\"amount_raw\":\"287,33\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Supermercado\",\"confidence\":0.93}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"compras no mercado\",\"amount_raw\":\"287,33\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Supermercado\",\"confidence\":0.93}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-com-data",
     "input": "No dia 10/08 gastei 150 reais com academia",
-    "expected_output": "{\"expenses\":[{\"description\":\"academia\",\"amount_raw\":\"150\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":\"2026-08-10\",\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Saúde e bem-estar\",\"confidence\":0.92}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"academia\",\"amount_raw\":\"150\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":\"2026-08-10\",\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Saúde e bem-estar\",\"confidence\":0.92}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-cartao-credito",
     "input": "Comprei um tênis de 320 no cartão de crédito",
-    "expected_output": "{\"expenses\":[{\"description\":\"tênis\",\"amount_raw\":\"320\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":\"credit_card\",\"category_hint\":\"Roupas e acessórios\",\"confidence\":0.91}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"tênis\",\"amount_raw\":\"320\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":\"credit_card\",\"category_hint\":\"Roupas e acessórios\",\"confidence\":0.91}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-parcelado-3x",
     "input": "Comprei um fone de 300 em 3x",
-    "expected_output": "{\"expenses\":[{\"description\":\"fone\",\"amount_raw\":\"300\",\"installments\":3,\"amount_is_total\":true,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Compras\",\"confidence\":0.9}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"fone\",\"amount_raw\":\"300\",\"installments\":3,\"amount_is_total\":true,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Compras\",\"confidence\":0.9}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-parcelado-valor-da-parcela",
     "input": "Fiz uma compra de 3x de 50 reais no shopping",
-    "expected_output": "{\"expenses\":[{\"description\":\"compra no shopping\",\"amount_raw\":\"50\",\"installments\":3,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Lazer e entretenimento\",\"confidence\":0.85}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"compra no shopping\",\"amount_raw\":\"50\",\"installments\":3,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Compras\",\"confidence\":0.85}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "multiplos-gastos",
     "input": "Gastei 25 no café e 40 no táxi",
-    "expected_output": "{\"expenses\":[{\"description\":\"café\",\"amount_raw\":\"25\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Alimentação\",\"confidence\":0.92},{\"description\":\"táxi\",\"amount_raw\":\"40\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Transporte\",\"confidence\":0.91}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"café\",\"amount_raw\":\"25\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Alimentação\",\"confidence\":0.92},{\"description\":\"táxi\",\"amount_raw\":\"40\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Transporte\",\"confidence\":0.91}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-ambigu-sem-valor",
     "input": "Gastei no almoço hoje",
-    "expected_output": "{\"expenses\":[],\"needs_clarification\":true,\"clarification_message\":\"Qual foi o valor do almoço?\"}"
+    "expected_output": "{\"expenses\":[],\"pending_expenses\":[{\"description\":\"almoço\",\"amount_raw\":null,\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Alimentação\",\"confidence\":0.45,\"missing_fields\":[\"amount\"],\"clarification_message\":\"Qual foi o valor do almoço?\"}],\"needs_clarification\":true,\"clarification_message\":\"Qual foi o valor do almoço?\"}"
   },
   {
     "name": "gasto-por-extenso",
     "input": "Gastei duzentos reais na farmácia",
-    "expected_output": "{\"expenses\":[{\"description\":\"farmácia\",\"amount_raw\":\"200\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Saúde e bem-estar\",\"confidence\":0.88}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"farmácia\",\"amount_raw\":\"200\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Saúde e bem-estar\",\"confidence\":0.88}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-cinema",
     "input": "Paguei 45 reais no ingresso do cinema no sábado",
-    "expected_output": "{\"expenses\":[{\"description\":\"ingresso do cinema\",\"amount_raw\":\"45\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Lazer e entretenimento\",\"confidence\":0.9}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"ingresso do cinema\",\"amount_raw\":\"45\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Lazer e entretenimento\",\"confidence\":0.9}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-conta-luz",
     "input": "Conta de luz de 189,90",
-    "expected_output": "{\"expenses\":[{\"description\":\"conta de luz\",\"amount_raw\":\"189,90\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Contas e serviços essenciais\",\"confidence\":0.93}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"conta de luz\",\"amount_raw\":\"189,90\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Contas e serviços essenciais\",\"confidence\":0.93}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-plano-saude",
     "input": "Mensalidade do plano de saúde foi 450 reais",
-    "expected_output": "{\"expenses\":[],\"needs_clarification\":true,\"clarification_message\":\"Este fluxo ainda não registra assinaturas recorrentes.\"}"
+    "expected_output": "{\"expenses\":[],\"pending_expenses\":[],\"needs_clarification\":true,\"clarification_message\":\"Este fluxo ainda não registra assinaturas recorrentes.\"}"
   },
   {
     "name": "gasto-escola",
     "input": "Paguei a mensalidade da escola da filha, 890 reais",
-    "expected_output": "{\"expenses\":[{\"description\":\"mensalidade da escola da filha\",\"amount_raw\":\"890\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Educação\",\"confidence\":0.91}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"mensalidade da escola da filha\",\"amount_raw\":\"890\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Educação\",\"confidence\":0.91}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-pet",
     "input": "Comprei ração para o cachorro, 120 reais",
-    "expected_output": "{\"expenses\":[{\"description\":\"ração para o cachorro\",\"amount_raw\":\"120\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Pets\",\"confidence\":0.9}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"ração para o cachorro\",\"amount_raw\":\"120\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Pets\",\"confidence\":0.9}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-streaming",
     "input": "Assinatura do Netflix de 39,90",
-    "expected_output": "{\"expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-combustivel",
     "input": "Abasteci o carro com 200 reais de gasolina",
-    "expected_output": "{\"expenses\":[{\"description\":\"gasolina\",\"amount_raw\":\"200\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Transporte\",\"confidence\":0.93}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"gasolina\",\"amount_raw\":\"200\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Transporte\",\"confidence\":0.93}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-cabelereiro",
     "input": "Cortei o cabelo por 60 reais",
-    "expected_output": "{\"expenses\":[{\"description\":\"corte de cabelo\",\"amount_raw\":\"60\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Cuidados pessoais\",\"confidence\":0.88}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"corte de cabelo\",\"amount_raw\":\"60\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Cuidados pessoais\",\"confidence\":0.88}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-pix",
     "input": "Paguei 75 reais de pix para o churrasco",
-    "expected_output": "{\"expenses\":[{\"description\":\"churrasco\",\"amount_raw\":\"75\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":\"pix\",\"category_hint\":\"Lazer e entretenimento\",\"confidence\":0.9}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"churrasco\",\"amount_raw\":\"75\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":\"pix\",\"category_hint\":\"Lazer e entretenimento\",\"confidence\":0.9}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-debito",
     "input": "Passei no débito 55 reais na padaria",
-    "expected_output": "{\"expenses\":[{\"description\":\"padaria\",\"amount_raw\":\"55\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":\"debit_card\",\"category_hint\":\"Alimentação\",\"confidence\":0.91}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"padaria\",\"amount_raw\":\"55\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":\"debit_card\",\"category_hint\":\"Alimentação\",\"confidence\":0.91}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-dinheiro",
     "input": "Paguei 20 reais em dinheiro no estacionamento",
-    "expected_output": "{\"expenses\":[{\"description\":\"estacionamento\",\"amount_raw\":\"20\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":\"cash\",\"category_hint\":\"Transporte\",\"confidence\":0.9}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"estacionamento\",\"amount_raw\":\"20\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":\"cash\",\"category_hint\":\"Transporte\",\"confidence\":0.9}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-viagem",
     "input": "Gastei 850 reais com passagem de avião para o Rio",
-    "expected_output": "{\"expenses\":[{\"description\":\"passagem de avião para o Rio\",\"amount_raw\":\"850\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Viagens\",\"confidence\":0.92}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"passagem de avião para o Rio\",\"amount_raw\":\"850\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Viagens\",\"confidence\":0.92}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-imposto",
     "input": "Paguei o IPVA de 1200 reais",
-    "expected_output": "{\"expenses\":[{\"description\":\"IPVA\",\"amount_raw\":\"1200\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Impostos, taxas e tarifas\",\"confidence\":0.93}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"IPVA\",\"amount_raw\":\"1200\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Impostos, taxas e tarifas\",\"confidence\":0.93}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-seguro",
     "input": "Seguro do carro custou 180 reais esse mês",
-    "expected_output": "{\"expenses\":[{\"description\":\"seguro do carro\",\"amount_raw\":\"180\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Seguros\",\"confidence\":0.9}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"seguro do carro\",\"amount_raw\":\"180\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Seguros\",\"confidence\":0.9}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-investimento",
     "input": "Apliquei 500 reais no Tesouro",
-    "expected_output": "{\"expenses\":[{\"description\":\"Tesouro\",\"amount_raw\":\"500\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Poupança e investimentos\",\"confidence\":0.87}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"Tesouro\",\"amount_raw\":\"500\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Poupança e investimentos\",\"confidence\":0.87}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-moradia",
     "input": "Paguei o aluguel de 1500 reais",
-    "expected_output": "{\"expenses\":[{\"description\":\"aluguel\",\"amount_raw\":\"1500\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Moradia\",\"confidence\":0.94}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"aluguel\",\"amount_raw\":\"1500\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Moradia\",\"confidence\":0.94}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-multiplo-com-data",
     "input": "Ontem gastei 30 no pão e 15 no ônibus",
-    "expected_output": "{\"expenses\":[{\"description\":\"pão\",\"amount_raw\":\"30\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Alimentação\",\"confidence\":0.9},{\"description\":\"ônibus\",\"amount_raw\":\"15\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Transporte\",\"confidence\":0.9}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"pão\",\"amount_raw\":\"30\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Alimentação\",\"confidence\":0.9},{\"description\":\"ônibus\",\"amount_raw\":\"15\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Transporte\",\"confidence\":0.9}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-parcelado-com-juros",
     "input": "Comprei uma geladeira de 2400 em 10x no cartão",
-    "expected_output": "{\"expenses\":[{\"description\":\"geladeira\",\"amount_raw\":\"2400\",\"installments\":10,\"amount_is_total\":true,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":\"credit_card\",\"category_hint\":\"Compras\",\"confidence\":0.89}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"geladeira\",\"amount_raw\":\"2400\",\"installments\":10,\"amount_is_total\":true,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":\"credit_card\",\"category_hint\":\"Compras\",\"confidence\":0.89}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-hora",
     "input": "Gastei 12 reais no cafezinho as 15h30",
-    "expected_output": "{\"expenses\":[{\"description\":\"cafezinho\",\"amount_raw\":\"12\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":\"15:30\",\"payment_method_hint\":null,\"category_hint\":\"Alimentação\",\"confidence\":0.88}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"cafezinho\",\"amount_raw\":\"12\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":\"15:30\",\"payment_method_hint\":null,\"category_hint\":\"Alimentação\",\"confidence\":0.88}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-familia",
     "input": "Paguei 300 reais de creche para o meu filho",
-    "expected_output": "{\"expenses\":[{\"description\":\"creche\",\"amount_raw\":\"300\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Família e filhos\",\"confidence\":0.92}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"creche\",\"amount_raw\":\"300\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Família e filhos\",\"confidence\":0.92}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-misto-claro-ambiguo",
     "input": "Gastei 40 no mercado e também gastei um dinheiro na farmácia, não lembro quanto",
-    "expected_output": "{\"expenses\":[{\"description\":\"mercado\",\"amount_raw\":\"40\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Supermercado\",\"confidence\":0.9}],\"needs_clarification\":true,\"clarification_message\":\"Qual foi o valor gasto na farmácia?\"}"
+    "expected_output": "{\"expenses\":[{\"source_start\":0,\"source_end\":20,\"source_text\":\"Gastei 40 no mercado\",\"description\":\"mercado\",\"amount_raw\":\"40\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Supermercado\",\"confidence\":0.9}],\"pending_expenses\":[{\"source_start\":23,\"source_end\":79,\"source_text\":\"também gastei um dinheiro na farmácia, não lembro quanto\",\"description\":\"farmácia\",\"amount_raw\":null,\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Saúde e bem-estar\",\"confidence\":0.45,\"missing_fields\":[\"amount\"],\"clarification_message\":\"Qual foi o valor gasto na farmácia?\"}],\"needs_clarification\":true,\"clarification_message\":\"Qual foi o valor gasto na farmácia?\"}"
   },
   {
     "name": "gasto-totalmente-ambiguo-sem-item",
     "input": "Gastei bastante hoje, nem sei quanto",
-    "expected_output": "{\"expenses\":[],\"needs_clarification\":true,\"clarification_message\":\"Qual foi o gasto e quanto você gastou?\"}"
+    "expected_output": "{\"expenses\":[],\"pending_expenses\":[{\"description\":null,\"amount_raw\":null,\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":null,\"confidence\":0.2,\"missing_fields\":[\"description\",\"amount\",\"category\"],\"clarification_message\":\"O que você gastou e quanto foi?\"}],\"needs_clarification\":true,\"clarification_message\":\"O que você gastou e quanto foi?\"}"
   },
   {
     "name": "gasto-valor-por-extenso-milhar",
     "input": "Gastei mil e duzentos reais no computador novo",
-    "expected_output": "{\"expenses\":[{\"description\":\"computador novo\",\"amount_raw\":\"1200\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Compras\",\"confidence\":0.87}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"computador novo\",\"amount_raw\":\"1200\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Compras\",\"confidence\":0.87}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-giria-pila",
     "input": "Gastei 50 pila de gasolina",
-    "expected_output": "{\"expenses\":[{\"description\":\"gasolina\",\"amount_raw\":\"50\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Transporte\",\"confidence\":0.86}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"gasolina\",\"amount_raw\":\"50\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Transporte\",\"confidence\":0.86}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-formato-milhar-br",
     "input": "Paguei 1.500,00 de aluguel",
-    "expected_output": "{\"expenses\":[{\"description\":\"aluguel\",\"amount_raw\":\"1500,00\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Moradia\",\"confidence\":0.88}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"aluguel\",\"amount_raw\":\"1500,00\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Moradia\",\"confidence\":0.88}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-valor-sem-centavos-hifen",
     "input": "Aluguel de R$ 800,- esse mês",
-    "expected_output": "{\"expenses\":[{\"description\":\"aluguel\",\"amount_raw\":\"800\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Moradia\",\"confidence\":0.88}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"aluguel\",\"amount_raw\":\"800\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Moradia\",\"confidence\":0.88}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-multiplo-tres-itens-metodos-diferentes",
     "input": "Paguei 30 no pix do almoço, 50 no crédito da farmácia e 15 em dinheiro no busão",
-    "expected_output": "{\"expenses\":[{\"description\":\"almoço\",\"amount_raw\":\"30\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":\"pix\",\"category_hint\":\"Alimentação\",\"confidence\":0.9},{\"description\":\"farmácia\",\"amount_raw\":\"50\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":\"credit_card\",\"category_hint\":\"Saúde e bem-estar\",\"confidence\":0.89},{\"description\":\"busão\",\"amount_raw\":\"15\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":\"cash\",\"category_hint\":\"Transporte\",\"confidence\":0.88}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"almoço\",\"amount_raw\":\"30\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":\"pix\",\"category_hint\":\"Alimentação\",\"confidence\":0.9},{\"description\":\"farmácia\",\"amount_raw\":\"50\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":\"credit_card\",\"category_hint\":\"Saúde e bem-estar\",\"confidence\":0.89},{\"description\":\"busão\",\"amount_raw\":\"15\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":\"cash\",\"category_hint\":\"Transporte\",\"confidence\":0.88}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-parcela-total-explicito",
     "input": "Comprei uma TV de 900 reais em 6 vezes, no total",
-    "expected_output": "{\"expenses\":[{\"description\":\"TV\",\"amount_raw\":\"900\",\"installments\":6,\"amount_is_total\":true,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Compras\",\"confidence\":0.9}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"TV\",\"amount_raw\":\"900\",\"installments\":6,\"amount_is_total\":true,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Compras\",\"confidence\":0.9}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-parcela-sem-numero-nem-valor",
     "input": "Vou parcelar a viagem que fiz",
-    "expected_output": "{\"expenses\":[],\"needs_clarification\":true,\"clarification_message\":\"Qual foi o valor da viagem e em quantas parcelas você quer dividir?\"}"
+    "expected_output": "{\"expenses\":[],\"pending_expenses\":[{\"description\":\"viagem\",\"amount_raw\":null,\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Viagens\",\"confidence\":0.4,\"missing_fields\":[\"amount\",\"installments\"],\"clarification_message\":\"Não consegui identificar com segurança qual gasto precisa de esclarecimento. Pode reenviar a informação com descrição e valor?\"}],\"needs_clarification\":true,\"clarification_message\":\"Não consegui identificar com segurança qual gasto precisa de esclarecimento. Pode reenviar a informação com descrição e valor?\"}"
   },
   {
     "name": "gasto-data-e-hora-relativos",
     "input": "Ontem às 20h gastei 60 reais no jantar",
-    "expected_output": "{\"expenses\":[{\"description\":\"jantar\",\"amount_raw\":\"60\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":\"20:00\",\"payment_method_hint\":null,\"category_hint\":\"Alimentação\",\"confidence\":0.89}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"jantar\",\"amount_raw\":\"60\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":\"20:00\",\"payment_method_hint\":null,\"category_hint\":\"Alimentação\",\"confidence\":0.89}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "mensagem-fora-de-dominio-saudacao",
     "input": "Oi, tudo bem?",
-    "expected_output": "{\"expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "mensagem-fora-de-dominio-pergunta-relatorio",
     "input": "Quanto eu gastei esse mês?",
-    "expected_output": "{\"expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-girias-e-emoji",
     "input": "gastei 35 conto 😅 no rolê com a galera",
-    "expected_output": "{\"expenses\":[{\"description\":\"rolê com a galera\",\"amount_raw\":\"35\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Lazer e entretenimento\",\"confidence\":0.84}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"rolê com a galera\",\"amount_raw\":\"35\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Lazer e entretenimento\",\"confidence\":0.84}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-centavos-por-extenso",
     "input": "Gastei 8 reais e 50 centavos no busão",
-    "expected_output": "{\"expenses\":[{\"description\":\"busão\",\"amount_raw\":\"8,50\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Transporte\",\"confidence\":0.87}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"busão\",\"amount_raw\":\"8,50\",\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Transporte\",\"confidence\":0.87}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-financiamento-parcelado-longo",
     "input": "Financiei uma moto de 8000 em 24x",
-    "expected_output": "{\"expenses\":[{\"description\":\"moto\",\"amount_raw\":\"8000\",\"installments\":24,\"amount_is_total\":true,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Dívidas e financiamentos\",\"confidence\":0.85}],\"needs_clarification\":false,\"clarification_message\":null}"
+    "expected_output": "{\"expenses\":[{\"description\":\"moto\",\"amount_raw\":\"8000\",\"installments\":24,\"amount_is_total\":true,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Dívidas e financiamentos\",\"confidence\":0.85}],\"pending_expenses\":[],\"needs_clarification\":false,\"clarification_message\":null}"
   },
   {
     "name": "gasto-ambiguo-item-nao-claro",
     "input": "Comprei umas coisas pro apê, gastei um bom dinheiro",
-    "expected_output": "{\"expenses\":[],\"needs_clarification\":true,\"clarification_message\":\"O que você comprou e quanto gastou?\"}"
+    "expected_output": "{\"expenses\":[],\"pending_expenses\":[{\"description\":\"coisas pro apê\",\"amount_raw\":null,\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Moradia\",\"confidence\":0.3,\"missing_fields\":[\"amount\"],\"clarification_message\":\"Qual foi o valor exato do gasto com as coisas para o apê?\"}],\"needs_clarification\":true,\"clarification_message\":\"Qual foi o valor exato do gasto com as coisas para o apê?\"}"
+  },
+  {
+    "name": "gasto-parcelado-sem-valor-nem-parcelas",
+    "input": "Comprei uma geladeira parcelada",
+    "expected_output": "{\"expenses\":[],\"pending_expenses\":[{\"description\":\"geladeira\",\"amount_raw\":null,\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Compras\",\"confidence\":0.4,\"missing_fields\":[\"amount\",\"installments\"],\"clarification_message\":\"Qual foi o valor da geladeira e em quantas vezes você parcelou?\"}],\"needs_clarification\":true,\"clarification_message\":\"Qual foi o valor da geladeira e em quantas vezes você parcelou?\"}"
+  },
+  {
+    "name": "gasto-parcelado-sem-numero-de-parcelas",
+    "input": "Paguei 1259,99 parcelado em um fogão",
+    "expected_output": "{\"expenses\":[],\"pending_expenses\":[{\"description\":\"fogão\",\"amount_raw\":\"1259,99\",\"installments\":null,\"amount_is_total\":true,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":\"Compras\",\"confidence\":0.55,\"missing_fields\":[\"installments\"],\"clarification_message\":\"Em quantas vezes você parcelou o fogão?\"}],\"needs_clarification\":true,\"clarification_message\":\"Em quantas vezes você parcelou o fogão?\"}"
+  },
+  {
+    "name": "gasto-item-desconhecido-sem-valor",
+    "input": "Comprei meu Ey",
+    "expected_output": "{\"expenses\":[],\"pending_expenses\":[{\"description\":\"Ey\",\"amount_raw\":null,\"installments\":null,\"amount_is_total\":false,\"date_hint\":null,\"time_hint\":null,\"payment_method_hint\":null,\"category_hint\":null,\"confidence\":0.2,\"missing_fields\":[\"amount\",\"category\"],\"clarification_message\":\"O que é Ey e quanto você pagou?\"}],\"needs_clarification\":true,\"clarification_message\":\"O que é Ey e quanto você pagou?\"}"
   }
 ]

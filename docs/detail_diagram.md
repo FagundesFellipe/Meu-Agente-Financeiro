@@ -26,7 +26,7 @@ flowchart TD
 
     H6 --> H7["🔧 resolve_extracted_expenses()<br/><b>PÓS-PROCESSAMENTO PYTHON</b>"]
     H7 --> H7a["Para cada ExtractedExpense:"]
-    H7a --> H7b["1️⃣ parse_amount(amount_raw) → Decimal"]
+    H7a --> H7b["1️⃣ parse_expense_amount(amount_raw) → Decimal"]
     H7b --> H7c["2️⃣ resolve_occurred_at(date_hint, time_hint, tz) → datetime"]
     H7c --> H7d["3️⃣ resolve_category(hint, categories) → CategoryRecord"]
     H7d --> H7e["❌ Erro em algum? → problems[] (pergunta ao usuário)"]

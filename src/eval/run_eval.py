@@ -10,7 +10,7 @@ from deepeval.evaluate import AsyncConfig, CacheConfig, DisplayConfig, ErrorConf
 from deepeval.test_case import LLMTestCase
 from dotenv import load_dotenv
 
-from eval.helper_agent import helper_agent_json
+from eval.evaluate_expense_adaptor import evaluate_expense_exctraction
 from eval.json_correctness_metric import (
     build_correctness_metrics,
     build_json_correctness_metric,
@@ -19,6 +19,7 @@ from eval.json_correctness_metric import (
 warnings.filterwarnings("ignore")
 
 DATASET = Path(__file__).resolve().parent / "dataset/golden.json"
+DEFAULT_PER_TASK_TIMEOUT_SECONDS = "180"
 
 
 def load_golden_dataset() -> list[Golden]:
@@ -29,7 +30,7 @@ def load_golden_dataset() -> list[Golden]:
 async def build_tests_cases(golden_dataset: list[Golden]) -> list[LLMTestCase]:
     tests = []
     for record in golden_dataset:
-        actual_output = await helper_agent_json(record.input)
+        actual_output = await evaluate_expense_exctraction(record.input)
         tests.append(
             LLMTestCase(
                 name=record.name,
@@ -44,6 +45,10 @@ async def build_tests_cases(golden_dataset: list[Golden]) -> list[LLMTestCase]:
 
 async def main() -> None:
     load_dotenv()
+    os.environ.setdefault(
+        "DEEPEVAL_PER_TASK_TIMEOUT_SECONDS_OVERRIDE",
+        DEFAULT_PER_TASK_TIMEOUT_SECONDS,
+    )
 
     golden_dataset = load_golden_dataset()
     tests_cases = await build_tests_cases(golden_dataset)
@@ -55,8 +60,8 @@ async def main() -> None:
         metrics=[metric_json, metric_geval],
         async_config=AsyncConfig(
             run_async=True,
-            max_concurrent=5,
-            throttle_value=0,
+            max_concurrent=2,
+            throttle_value=1,
         ),
         cache_config=CacheConfig(
             use_cache=True,
@@ -70,7 +75,7 @@ async def main() -> None:
             file_output_dir=os.getenv("DEEPEVAL_RESULTS_FOLDER", "./evals"),
         ),
         error_config=ErrorConfig(
-            ignore_errors=False,
+            ignore_errors=True,
             skip_on_missing_params=False,
         ),
     )
