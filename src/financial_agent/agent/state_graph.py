@@ -9,9 +9,14 @@ Divisão de responsabilidades:
     - ``ExpenseDetails`` é o resultado determinístico do pós-processamento em
       Python (valor em ``Decimal``, data resolvida, categoria existente no banco),
       pronto para persistência.
+
+A mesma divisão vale para gasto recorrente (``ExtractedRecurringExpense`` ->
+``RecurringExpenseDetails``). Os dois fluxos usam listas fisicamente separadas
+no estado: um rascunho de gasto fixo nunca pode chegar ao resolvedor de gasto
+pontual, e vice-versa.
 """
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Literal, NotRequired
 from uuid import UUID
@@ -213,6 +218,156 @@ class ExpenseDetails(BaseModel):
     )
 
 
+# ---- GASTO RECORRENTE (regra mensal, tabela ``recurring_expense``) ----
+class ExtractedRecurringExpense(BaseModel):
+    """Regra de gasto fixo bruta, extraída pelo LLM antes de qualquer validação.
+
+    Como em ``ExtractedExpense``, todos os campos são "hints": o modelo apenas
+    transcreve o que o usuário disse. Não existe ``installments`` aqui —
+    parcelamento é conceito de gasto pontual, não de regra mensal.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    source_start: int | None = Field(default=None, ge=0)
+    source_end: int | None = Field(default=None, gt=0)
+    source_text: str | None = Field(
+        default=None,
+        description="Trecho literal da mensagem entre source_start e source_end",
+    )
+    description: str = Field(
+        description="Rótulo do gasto fixo, sem o valor. Ex.: 'Netflix', 'academia'"
+    )
+    amount_raw: str = Field(
+        description=(
+            "Valor mensal usando apenas algarismos (0-9), vírgula como separador "
+            "decimal. Converta texto por extenso para dígitos ('cinquenta reais' "
+            "vira '50'). Remova símbolos de moeda (R$). Ex.: '55', '21,90'."
+        )
+    )
+    recurrence_day_hint: str | None = Field(
+        default=None,
+        description=(
+            "Dia do mês em que a cobrança acontece, como texto. "
+            "Ex.: '10', 'todo dia 5'. null quando o usuário não informou."
+        ),
+    )
+    starts_at_hint: str | None = Field(
+        default=None,
+        description="Data de início da recorrência em YYYY-MM-DD, ou null",
+    )
+    payment_method_hint: PaymentMethodHint | None = Field(
+        default=None,
+        description="Meio de pagamento canônico, ou null se o usuário não informou",
+    )
+    category_hint: str | None = Field(
+        default=None,
+        description="Nome exato de uma categoria disponível, ou null",
+    )
+    confidence: float = Field(
+        ge=0.0, le=1.0, description="Confiança do modelo na extração desta regra"
+    )
+
+
+PendingRecurringExpenseField = Literal[
+    "description",
+    "amount",
+    "recurrence_day",
+    "category",
+]
+
+PendingRecurringExpenseResolutionRoute = Literal[
+    "add_recurring_expenses_agent",
+    "finalize_response",
+]
+
+
+class PendingRecurringExpense(BaseModel):
+    """Rascunho de regra mensal que ainda não pode ser persistida.
+
+    Espelha ``ExtractedRecurringExpense`` com todos os campos opcionais. O
+    identificador e a data de criação são atribuídos pelo servidor; esta última
+    marca o início da janela de 24 horas do TTL.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str | None = Field(
+        default=None, description="Identificador estável do rascunho"
+    )
+    source_start: int | None = Field(default=None, ge=0)
+    source_end: int | None = Field(default=None, gt=0)
+    source_text: str | None = Field(
+        default=None,
+        description="Trecho literal da mensagem entre source_start e source_end",
+    )
+    description: str | None = None
+    amount_raw: str | None = None
+    recurrence_day_hint: str | None = None
+    starts_at_hint: str | None = None
+    payment_method_hint: PaymentMethodHint | None = None
+    category_hint: str | None = None
+    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    missing_fields: list[PendingRecurringExpenseField] = Field(min_length=1)
+    clarification_message: str = Field(min_length=1)
+    created_at: datetime | None = None
+
+
+class AddRecurringExpensesResult(BaseModel):
+    """Resposta estruturada do sub-agente de cadastro de gastos fixos."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    recurring_expenses: list[ExtractedRecurringExpense] = Field(
+        default_factory=list,
+        description="Regras completas e autorizadas a seguir para validação",
+    )
+    pending_recurring_expenses: list[PendingRecurringExpense] = Field(
+        default_factory=list,
+        description="Rascunhos incompletos que nunca podem entrar em "
+        "recurring_expenses",
+    )
+    needs_clarification: bool = Field(
+        default=False, description="True quando falta informação para cadastrar"
+    )
+    clarification_message: str | None = Field(
+        default=None, description="Pergunta a enviar ao usuário quando há ambiguidade"
+    )
+
+    @model_validator(mode="after")
+    def synchronize_clarification_flag(self) -> "AddRecurringExpensesResult":
+        """Mantém o campo legado coerente quando há rascunhos estruturados."""
+        if self.pending_recurring_expenses:
+            self.needs_clarification = True
+        return self
+
+
+class RecurringExpenseDetails(BaseModel):
+    """Regra já validada em Python, pronta para a tabela ``recurring_expense``."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    description: str = Field(description="Descrição normalizada da regra")
+    original_description: str = Field(
+        description="Texto original do usuário, preservado para auditoria"
+    )
+    amount: Decimal = Field(
+        description="Valor mensal decimal exato (nunca float binário)"
+    )
+    category_id: UUID = Field(description="Categoria existente no banco")
+    category_name: str = Field(description="Nome da categoria, para a confirmação")
+    payment_method: PaymentMethod = Field(description="Meio de pagamento canônico")
+    recurrence_day: int = Field(
+        ge=1, le=31, description="Dia do mês da cobrança, gravado sem clamp"
+    )
+    starts_at: date = Field(
+        description="Primeiro mês em que a regra vale. Pode estar no futuro."
+    )
+    confidence: float | None = Field(
+        default=None, ge=0.0, le=1.0, description="Confiança da extração pelo LLM"
+    )
+
+
 class InputState(TypedDict):
     """Campos aceitos na invocação do grafo."""
 
@@ -245,5 +400,11 @@ class GraphState(TypedDict):
     needs_clarification: NotRequired[bool]
     clarification_message: NotRequired[str | None]
     expense_details: NotRequired[list[ExpenseDetails]]
+    pending_recurring_expenses: NotRequired[list[PendingRecurringExpense]]
+    expired_pending_recurring_expenses: NotRequired[list[PendingRecurringExpense]]
+    pending_recurring_expense_resolution_route: NotRequired[
+        PendingRecurringExpenseResolutionRoute
+    ]
+    recurring_expense_details: NotRequired[list[RecurringExpenseDetails]]
     response_text: NotRequired[str | None]
     errors: NotRequired[list[str]]
