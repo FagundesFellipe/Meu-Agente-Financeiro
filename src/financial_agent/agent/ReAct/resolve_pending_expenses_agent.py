@@ -24,6 +24,7 @@ from financial_agent.agent.state_graph import (
 )
 from financial_agent.agent.tools import calendar as tools_calendar
 from financial_agent.agent.tools.pending_expenses import (
+    accept_if_confirmed_fields_untouched,
     format_expired_pending_message,
     format_pending_questions,
 )
@@ -339,37 +340,41 @@ def build_pending_resolution_prompt(
 
 
 # ---- DOMAIN GUARD ----
+_MISSING_FIELD_NAME_BY_ATTRIBUTE = {
+    "description": "description",
+    "amount_raw": "amount",
+    "installments": "installments",
+    "date_hint": "date",
+    "payment_method_hint": "payment_method",
+    "category_hint": "category",
+}
+
+
 def _accept_if_confirmed_fields_untouched(
     pending_expense: PendingExpense, proposed_expense: ExtractedExpense
 ) -> ExtractedExpense | None:
-    """Devolve a proposta só se ela não alterou nenhum campo já confirmado."""
-    proposed_values = proposed_expense.model_dump()
-    confirmed_value_by_field = {
-        "description": pending_expense.description,
-        "amount_raw": pending_expense.amount_raw,
-        "installments": pending_expense.installments,
-        "date_hint": pending_expense.date_hint,
-        "payment_method_hint": pending_expense.payment_method_hint,
-        "category_hint": pending_expense.category_hint,
-    }
-    missing_field_name_by_attribute = {
-        "description": "description",
-        "amount_raw": "amount",
-        "installments": "installments",
-        "date_hint": "date",
-        "payment_method_hint": "payment_method",
-        "category_hint": "category",
-    }
-    for attribute, confirmed_value in confirmed_value_by_field.items():
-        is_still_confirmed = (
-            missing_field_name_by_attribute[attribute]
-            not in pending_expense.missing_fields
-        )
-        if is_still_confirmed and proposed_values[attribute] != confirmed_value:
-            return None
-    if proposed_values["amount_is_total"] != pending_expense.amount_is_total:
+    """Devolve a proposta só se ela não alterou nenhum campo já confirmado.
+
+    ``amount_is_total`` é verificado à parte porque não aparece em
+    ``missing_fields``: ele é sempre uma leitura do que o usuário já disse
+    sobre o valor, então o modelo nunca pode revisá-lo em uma continuação.
+    """
+    accepted = accept_if_confirmed_fields_untouched(
+        proposal=proposed_expense,
+        confirmed_value_by_attribute={
+            "description": pending_expense.description,
+            "amount_raw": pending_expense.amount_raw,
+            "installments": pending_expense.installments,
+            "date_hint": pending_expense.date_hint,
+            "payment_method_hint": pending_expense.payment_method_hint,
+            "category_hint": pending_expense.category_hint,
+        },
+        missing_field_name_by_attribute=_MISSING_FIELD_NAME_BY_ATTRIBUTE,
+        still_missing_fields=pending_expense.missing_fields,
+    )
+    if accepted is None or accepted.amount_is_total != pending_expense.amount_is_total:
         return None
-    return ExtractedExpense.model_validate(proposed_values)
+    return accepted
 
 
 # ---- STATE-DELTA BUILDERS ----

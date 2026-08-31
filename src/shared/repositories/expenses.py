@@ -8,7 +8,6 @@ Regras que este módulo garante:
     - Dinheiro em ``Decimal``/NUMERIC — nunca float binário.
 """
 
-import hashlib
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -18,23 +17,7 @@ from psycopg.types.json import Jsonb
 
 from financial_agent.agent.state_graph import ExpenseDetails, PaymentMethod
 from shared.db import DictConnection, user_connection
-
-_LOCK_MESSAGE = "SELECT pg_advisory_xact_lock(%s)"
-
-
-def _lock_key(namespace: str, key: str) -> int:
-    """Gera uma chave de lock determinística via SHA-256 para o namespace.
-
-    Produz um inteiro signed 64-bit a partir dos primeiros 8 bytes do hash,
-    compatível com ``pg_advisory_xact_lock(bigint)``.
-    """
-    payload = f"{namespace}:{key}".encode()
-    return int.from_bytes(
-        hashlib.sha256(payload).digest()[:8],
-        byteorder="big",
-        signed=True,
-    )
-
+from shared.repositories._locks import ADVISORY_TRANSACTION_LOCK, advisory_lock_key
 
 _SELECT_BY_SOURCE_MESSAGE = """
     SELECT e.id, e.amount, e.description, e.original_description,
@@ -153,7 +136,10 @@ async def insert_expenses(
     async with user_connection(user_id_str) as conn:
         if source_id_str is not None:
             # Serializa retries concorrentes da mesma mensagem antes de checar.
-            await conn.execute(_LOCK_MESSAGE, (_lock_key("expense", source_id_str),))
+            await conn.execute(
+                ADVISORY_TRANSACTION_LOCK,
+                (advisory_lock_key("expense", source_id_str),),
+            )
 
             existing = await _fetch_by_source_message(conn, user_id_str, source_id_str)
             if existing:

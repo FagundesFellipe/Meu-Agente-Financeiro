@@ -19,7 +19,12 @@ from difflib import get_close_matches
 from shared.config import settings
 from shared.repositories.categories import CategoryRecord
 
-__all__ = ["CategoryResolutionError", "normalize", "resolve_category"]
+__all__ = [
+    "CategoryResolutionError",
+    "find_category",
+    "normalize",
+    "resolve_category",
+]
 
 
 class CategoryResolutionError(ValueError):
@@ -71,6 +76,27 @@ def _by_description(
     return None
 
 
+def find_category(
+    description: str,
+    hint: str | None,
+    categories: list[CategoryRecord],
+) -> CategoryRecord | None:
+    """Procura a categoria do gasto sem jamais recorrer ao fallback genérico.
+
+    É a cadeia de estratégias 1 a 4 do módulo. Fluxos em que uma categoria
+    genérica atribuída automaticamente corromperia o dado — gasto recorrente,
+    por exemplo — usam esta função e transformam o ``None`` em uma pergunta ao
+    usuário, em vez de gravar um palpite.
+    """
+    if hint:
+        for strategy in (_by_exact_name, _by_normalized, _by_fuzzy):
+            match = strategy(hint, categories)
+            if match is not None:
+                return match
+
+    return _by_description(description, categories)
+
+
 def resolve_category(
     description: str,
     hint: str | None,
@@ -93,15 +119,9 @@ def resolve_category(
     if not categories:
         raise CategoryResolutionError("Nenhuma categoria disponível para o usuário")
 
-    if hint:
-        for strategy in (_by_exact_name, _by_normalized, _by_fuzzy):
-            match = strategy(hint, categories)
-            if match is not None:
-                return match
-
-    by_description = _by_description(description, categories)
-    if by_description is not None:
-        return by_description
+    match = find_category(description, hint, categories)
+    if match is not None:
+        return match
 
     fallback = _by_normalized(settings.fallback_category_name, categories)
     if fallback is None:

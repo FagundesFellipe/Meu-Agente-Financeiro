@@ -213,21 +213,6 @@ class ExpenseDetails(BaseModel):
     )
 
 
-class RecurringExpense(BaseModel):
-    """Gasto recorrente identificado pelo agente.
-
-    Indexado por descrição no estado do grafo.
-    """
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-    description: str = Field(
-        description="Rótulo legível por humanos, por exemplo 'Spotify Premium''"
-    )
-    category: str = Field(description="Categoria da despesa da lista predefinida")
-    amount: str = Field(description="Valor mensal")
-
-
 class InputState(TypedDict):
     """Campos aceitos na invocação do grafo."""
 
@@ -260,6 +245,5 @@ class GraphState(TypedDict):
     needs_clarification: NotRequired[bool]
     clarification_message: NotRequired[str | None]
     expense_details: NotRequired[list[ExpenseDetails]]
-    recurring_monthly_expenses: NotRequired[RecurringExpense | None]
     response_text: NotRequired[str | None]
     errors: NotRequired[list[str]]
