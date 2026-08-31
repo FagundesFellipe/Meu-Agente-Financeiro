@@ -14,9 +14,10 @@ def enforce_missing_field_dependencies(pending: PendingExpense) -> PendingExpens
     O LLM às vezes marca só `description` como faltando, mas deixa `category_hint`
     em branco sem marcar `category` como faltando também. Categoria de um item
     desconhecido nunca é segura — ela depende do próprio item. Sem essa correção,
-    o merge determinístico (``_merge_resolved_expense``) trata esse branco como
-    "confirmado: sem categoria" e trava a pendência para sempre, mesmo depois da
-    descrição ser respondida.
+    o guard determinístico (``_accept_if_confirmed_fields_untouched`` em
+    resolve_pending_expenses_agent) trata esse branco como "confirmado: sem
+    categoria" e trava a pendência para sempre, mesmo depois da descrição ser
+    respondida.
     """
     if (
         "description" in pending.missing_fields

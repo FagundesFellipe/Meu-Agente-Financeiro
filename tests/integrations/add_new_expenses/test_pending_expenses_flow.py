@@ -18,7 +18,7 @@ from financial_agent.agent.ReAct import add_new_expenses_agent as add_module
 from financial_agent.agent.ReAct import resolve_pending_expenses_agent as resolve_module
 from financial_agent.agent.ReAct.add_new_expenses_agent import add_new_expenses
 from financial_agent.agent.ReAct.resolve_pending_expenses_agent import (
-    PendingExpenseResolutionResult,
+    PendingResolutionDecision,
     resolve_pending_expenses,
 )
 from financial_agent.agent.state_graph import (
@@ -346,8 +346,8 @@ def stub_pending_resolver(monkeypatch: pytest.MonkeyPatch, categories):
 async def test_complementary_message_creates_installments_once(stub_pending_resolver):
     tracker, monkeypatch = stub_pending_resolver
 
-    async def completed(*_: object) -> PendingExpenseResolutionResult:
-        return PendingExpenseResolutionResult(
+    async def completed(*_: object) -> PendingResolutionDecision:
+        return PendingResolutionDecision(
             status="completed",
             expense=extracted(
                 description="geladeira",
@@ -381,8 +381,8 @@ async def test_new_expense_is_delegated_without_removing_pending_expenses(
 ):
     _, monkeypatch = stub_pending_resolver
 
-    async def new_expense(*_: object) -> PendingExpenseResolutionResult:
-        return PendingExpenseResolutionResult(status="new_expense")
+    async def new_expense(*_: object) -> PendingResolutionDecision:
+        return PendingResolutionDecision(status="new_expense")
 
     monkeypatch.setattr(resolve_module, "_resolve_one_pending_expense", new_expense)
 
@@ -411,8 +411,8 @@ async def test_amount_response_completes_the_pending_expense_without_new_draft(
         missing_fields=["amount"],
     )
 
-    async def completed_amount(*_: object) -> PendingExpenseResolutionResult:
-        return PendingExpenseResolutionResult(
+    async def completed_amount(*_: object) -> PendingResolutionDecision:
+        return PendingResolutionDecision(
             status="completed",
             expense=extracted(
                 description="geladeira",
@@ -449,11 +449,9 @@ async def test_completed_pending_includes_the_next_pending_question(
         clarification_message="Qual foi o valor do mercado?",
     )
 
-    async def decide(
-        current: PendingExpense, *_: object
-    ) -> PendingExpenseResolutionResult:
+    async def decide(current: PendingExpense, *_: object) -> PendingResolutionDecision:
         if current.id == "concluida":
-            return PendingExpenseResolutionResult(
+            return PendingResolutionDecision(
                 status="completed",
                 expense=extracted(
                     description="geladeira",
@@ -463,7 +461,7 @@ async def test_completed_pending_includes_the_next_pending_question(
                     category_hint=None,
                 ),
             )
-        return PendingExpenseResolutionResult(status="not_applicable")
+        return PendingResolutionDecision(status="not_applicable")
 
     monkeypatch.setattr(resolve_module, "_resolve_one_pending_expense", decide)
     result = await resolve_pending_expenses(
@@ -645,8 +643,8 @@ async def test_workflow_resolves_amount_response_without_calling_add_expenses(
 async def test_resolver_cannot_change_confirmed_pending_fields(stub_pending_resolver):
     tracker, monkeypatch = stub_pending_resolver
 
-    async def altered_expense(*_: object) -> PendingExpenseResolutionResult:
-        return PendingExpenseResolutionResult(
+    async def altered_expense(*_: object) -> PendingResolutionDecision:
+        return PendingResolutionDecision(
             status="completed",
             expense=extracted(
                 description="televisão",
@@ -681,8 +679,8 @@ async def test_resolver_cannot_invent_confirmed_none_installments(
         missing_fields=["amount"],
     )
 
-    async def invented_installments(*_: object) -> PendingExpenseResolutionResult:
-        return PendingExpenseResolutionResult(
+    async def invented_installments(*_: object) -> PendingResolutionDecision:
+        return PendingResolutionDecision(
             status="completed",
             expense=extracted(
                 description="geladeira",
@@ -721,8 +719,8 @@ async def test_category_inferred_after_description_is_no_longer_blocked(
         clarification_message="O que você comprou por R$120?",
     )
 
-    async def completed_with_category(*_: object) -> PendingExpenseResolutionResult:
-        return PendingExpenseResolutionResult(
+    async def completed_with_category(*_: object) -> PendingResolutionDecision:
+        return PendingResolutionDecision(
             status="completed",
             expense=extracted(
                 description="Whey",
@@ -793,8 +791,8 @@ async def test_ambiguous_response_keeps_multiple_pending_expenses(
 ):
     _, monkeypatch = stub_pending_resolver
 
-    async def not_applicable(*_: object) -> PendingExpenseResolutionResult:
-        return PendingExpenseResolutionResult(status="not_applicable")
+    async def not_applicable(*_: object) -> PendingResolutionDecision:
+        return PendingResolutionDecision(status="not_applicable")
 
     monkeypatch.setattr(resolve_module, "_resolve_one_pending_expense", not_applicable)
     result = await resolve_pending_expenses(
