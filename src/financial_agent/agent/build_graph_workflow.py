@@ -5,6 +5,7 @@ Para inspecionar o desenho ou fazer um teste manual, use ``make graph`` ou
 ``python -m financial_agent.agent.build_graph_workflow``.
 """
 
+from time import perf_counter
 from typing import Literal, cast
 
 import structlog
@@ -21,8 +22,14 @@ from financial_agent.agent.middleware.trim import (
     trim_messages_by_turns,
 )
 from financial_agent.agent.ReAct.add_new_expenses_agent import add_new_expenses
+from financial_agent.agent.ReAct.add_recurring_expenses_agent import (
+    add_recurring_expenses,
+)
 from financial_agent.agent.ReAct.resolve_pending_expenses_agent import (
     resolve_pending_expenses,
+)
+from financial_agent.agent.ReAct.resolve_pending_recurring_expenses_agent import (
+    resolve_pending_recurring_expenses,
 )
 from financial_agent.agent.state_graph import GraphState, InputState, Intentions
 from financial_agent.agent.tools import calendar as tools_calendar
@@ -31,6 +38,9 @@ from shared.agent_builder import build_agent_for_version
 from shared.config import settings
 from shared.db import open_checkpointer
 from shared.prompt_loader import get_active_version, load_prompt_config
+from shared.repositories.recurring_expenses import (
+    materialize_due_recurring_expenses,
+)
 from shared.repositories.users import ensure_user
 
 logger = structlog.get_logger()
@@ -69,6 +79,43 @@ async def ensure_user_node(state: GraphState) -> dict:
         "user_timezone": user.timezone,
         "is_new_user": created,
     }
+
+
+async def catch_up_recurring_expenses(state: GraphState) -> dict:
+    """Materializa os gastos fixos já vencidos antes de tratar a mensagem.
+
+    Catch-up preguiçoso: como o produto é apenas conversacional, gerar os
+    lançamentos no instante da mensagem é, para o usuário, indistinguível de
+    gerar por agendamento — e dispensa processo, container e monitoramento.
+
+    A geração é silenciosa e a falha é absorvida: catch-up é manutenção de
+    dados, nunca a intenção do usuário. Se ele falhar enquanto o usuário
+    registra um almoço, o almoço deve ser registrado mesmo assim.
+    """
+    user_id = state["user_id"]
+    user_timezone = state["user_timezone"]
+    started_at = perf_counter()
+
+    try:
+        result = await materialize_due_recurring_expenses(
+            user_id=user_id,
+            today=tools_calendar.user_now(user_timezone).date(),
+            user_timezone=user_timezone,
+        )
+    except Exception:
+        logger.exception("recurring_catchup_failed", user_id=user_id)
+        return {}
+
+    logger.info(
+        "recurring_catchup_finished",
+        user_id=user_id,
+        generated=len(result.generated),
+        rules_processed=result.rules_processed,
+        truncated_rules=[str(rule_id) for rule_id in result.truncated_rules],
+        duration_ms=round((perf_counter() - started_at) * 1000, 1),
+    )
+
+    return {"materialized_recurring_expenses": len(result.generated)}
 
 
 async def finalize_response(state: GraphState) -> dict:
@@ -127,10 +174,23 @@ def route_decision_intentions(state: GraphState) -> str:
 
 def route_after_pending_expiration(
     state: GraphState,
-) -> Literal["llm_call_router", "resolve_pending_expenses_agent"]:
-    """Evita que o roteador descarte o contexto de uma pendência ativa."""
+) -> Literal[
+    "llm_call_router",
+    "resolve_pending_expenses_agent",
+    "resolve_pending_recurring_expenses_agent",
+]:
+    """Evita que o roteador descarte o contexto de uma pendência ativa.
+
+    Pendência de gasto pontual tem precedência sobre a de gasto fixo: é o fluxo
+    de maior frequência, e resolvê-lo primeiro minimiza o tempo médio com uma
+    pergunta em aberto.
+    """
     if state.get("pending_expenses") or state.get("expired_pending_expenses"):
         return "resolve_pending_expenses_agent"
+    if state.get("pending_recurring_expenses") or state.get(
+        "expired_pending_recurring_expenses"
+    ):
+        return "resolve_pending_recurring_expenses_agent"
     return "llm_call_router"
 
 
@@ -139,6 +199,13 @@ def route_after_pending_resolution(
 ) -> Literal["add_new_expenses_agent", "finalize_response"]:
     """Permite gasto novo sem apagar o rascunho pendente."""
     return state.get("pending_expense_resolution_route", "finalize_response")
+
+
+def route_after_pending_recurring_resolution(
+    state: GraphState,
+) -> Literal["add_recurring_expenses_agent", "finalize_response"]:
+    """Permite cadastrar uma regra nova sem apagar o rascunho pendente."""
+    return state.get("pending_recurring_expense_resolution_route", "finalize_response")
 
 
 def route_input_content(
@@ -161,15 +228,27 @@ async def greeting_agent(state: GraphState) -> dict:
 
 
 async def expire_pending_expenses(state: GraphState) -> dict:
-    """Remove rascunhos expirados antes de classificar a mensagem atual."""
+    """Remove rascunhos expirados antes de classificar a mensagem atual.
+
+    Vale para os dois tipos de rascunho, com o mesmo TTL de 24 horas. As duas
+    listas são separadas de propósito: um rascunho de gasto fixo entregue ao
+    resolvedor de gasto pontual seria um objeto que ele não sabe tratar.
+    """
+    now = tools_calendar.user_now(state["user_timezone"])
+
     active, expired = split_expired_pending_expenses(
-        list(state.get("pending_expenses", [])),
-        tools_calendar.user_now(state["user_timezone"]),
+        list(state.get("pending_expenses", [])), now
     )
+    active_recurring, expired_recurring = split_expired_pending_expenses(
+        list(state.get("pending_recurring_expenses", [])), now
+    )
+
     return {
         "pending_expenses": active,
         "expired_pending_expenses": expired,
-        "needs_clarification": bool(active),
+        "pending_recurring_expenses": active_recurring,
+        "expired_pending_recurring_expenses": expired_recurring,
+        "needs_clarification": bool(active or active_recurring),
     }
 
 
@@ -183,22 +262,21 @@ async def report_agent(state: GraphState) -> dict:
     return {"response_text": _NOT_IMPLEMENTED_YET}
 
 
-async def add_recurring_expenses_agent(state: GraphState) -> dict:
-    """Placeholder do agente de categorias/gastos recorrentes."""
-    return {"response_text": _NOT_IMPLEMENTED_YET}
-
-
 def build_workflow() -> StateGraph:
     """Monta o grafo do assistente, sem compilar."""
     builder = StateGraph(GraphState, input_schema=InputState)
 
     builder.add_node("blocked_input", blocked_input)
     builder.add_node("ensure_user_node", ensure_user_node)
+    builder.add_node("catch_up_recurring_expenses", catch_up_recurring_expenses)
     builder.add_node("expire_pending_expenses", expire_pending_expenses)
     builder.add_node("llm_call_router", llm_call_router)
     builder.add_node("add_new_expenses_agent", add_new_expenses)
     builder.add_node("resolve_pending_expenses_agent", resolve_pending_expenses)
-    builder.add_node("add_recurring_expenses_agent", add_recurring_expenses_agent)
+    builder.add_node("add_recurring_expenses_agent", add_recurring_expenses)
+    builder.add_node(
+        "resolve_pending_recurring_expenses_agent", resolve_pending_recurring_expenses
+    )
     builder.add_node("report_agent", report_agent)
     builder.add_node("greeting_agent", greeting_agent)
     builder.add_node("undefined_agent", undefined_agent)
@@ -212,11 +290,16 @@ def build_workflow() -> StateGraph:
         route_input_content,
         ["blocked_input", "ensure_user_node"],
     )
-    builder.add_edge("ensure_user_node", "expire_pending_expenses")
+    builder.add_edge("ensure_user_node", "catch_up_recurring_expenses")
+    builder.add_edge("catch_up_recurring_expenses", "expire_pending_expenses")
     builder.add_conditional_edges(
         "expire_pending_expenses",
         route_after_pending_expiration,
-        ["llm_call_router", "resolve_pending_expenses_agent"],
+        [
+            "llm_call_router",
+            "resolve_pending_expenses_agent",
+            "resolve_pending_recurring_expenses_agent",
+        ],
     )
     builder.add_conditional_edges(
         "llm_call_router",
@@ -237,6 +320,12 @@ def build_workflow() -> StateGraph:
         "resolve_pending_expenses_agent",
         route_after_pending_resolution,
         ["add_new_expenses_agent", "finalize_response"],
+    )
+
+    builder.add_conditional_edges(
+        "resolve_pending_recurring_expenses_agent",
+        route_after_pending_recurring_resolution,
+        ["add_recurring_expenses_agent", "finalize_response"],
     )
 
     for node in (

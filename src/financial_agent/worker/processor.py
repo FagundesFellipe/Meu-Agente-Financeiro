@@ -18,12 +18,8 @@ import structlog
 from langchain_core.messages import HumanMessage
 
 from financial_agent.agent.build_graph_workflow import graph
-from financial_agent.worker.clients.telegram import TelegramClient
-from financial_agent.worker.clients.twilio import TwilioClient
-from financial_agent.worker.media import telegram as telegram_media
-from financial_agent.worker.media import whatsapp as whatsapp_media
+from financial_agent.worker.channels import get_channel
 from financial_agent.worker.media.shared import AUTO_RESPONSE_MEDIA_FAILURE
-from shared.config import settings
 from shared.queue import (
     Channel,
     hold_thread_processing_lock,
@@ -35,27 +31,6 @@ from shared.repositories.queue import MessageQueue
 
 logger = structlog.get_logger()
 
-_PREPROCESSORS = {
-    "telegram": telegram_media.preprocess_incoming_message,
-    "whatsapp": whatsapp_media.preprocess_incoming_message,
-}
-
-
-def _channel_client(channel: str) -> TwilioClient | TelegramClient:
-    """Instancia o cliente de envio para o canal da mensagem."""
-    if channel == "telegram":
-        bot_token = settings.telegram_bot_token
-        return TelegramClient(
-            bot_token=bot_token.get_secret_value() if bot_token else ""
-        )
-    return TwilioClient(
-        account_sid=settings.twilio_account_sid,
-        api_key_sid=settings.twilio_api_key_sid,
-        api_key_secret=settings.twilio_api_key_secret,
-        from_number=settings.twilio_from_number,
-        delivery_mode=settings.resolved_twilio_outbound_mode,
-    )
-
 
 async def _process_claimed_message(message: MessageQueue) -> None:
     """Executa uma mensagem enquanto a posse da conversa está protegida."""
@@ -63,8 +38,8 @@ async def _process_claimed_message(message: MessageQueue) -> None:
     if claim_token is None:
         raise RuntimeError("claimed_message_without_claim_token")
 
-    preprocess = _PREPROCESSORS[message.channel]
-    preprocessed = await preprocess(
+    channel = get_channel(message.channel)
+    preprocessed = await channel.preprocess(
         message.incoming_message, message.media_url, message.media_type
     )
 
@@ -97,8 +72,7 @@ async def _process_claimed_message(message: MessageQueue) -> None:
     if not completed:
         return
 
-    client = _channel_client(message.channel)
-    await client.send_message(to=message.phone_number, body=response_text)
+    await channel.send_message(to=message.phone_number, body=response_text)
 
     await upsert_conversation(
         phone_number=message.phone_number,

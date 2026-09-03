@@ -22,8 +22,15 @@ services:
       context: .
       dockerfile: Dockerfile.api
     container_name: assistente_financeiro_API  
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.assistente-financeiro.rule=Host(`meuassistentefinanceiro.autoxai.com.br`)"
+      - "traefik.http.routers.assistente-financeiro.entrypoints=websecure"
+      - "traefik.http.routers.assistente-financeiro.tls=true"
+      - "traefik.http.routers.assistente-financeiro.tls.certresolver=letsencrypt"
+      - "traefik.http.services.assistente-financeiro.loadbalancer.server.port=8000"
     env_file: .env
     environment:
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD precisa estar definido no .env}@db:5432/assistente_financeiro 

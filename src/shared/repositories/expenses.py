@@ -8,9 +8,8 @@ Regras que este módulo garante:
     - Dinheiro em ``Decimal``/NUMERIC — nunca float binário.
 """
 
-import hashlib
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -18,28 +17,12 @@ from psycopg.types.json import Jsonb
 
 from financial_agent.agent.state_graph import ExpenseDetails, PaymentMethod
 from shared.db import DictConnection, user_connection
-
-_LOCK_MESSAGE = "SELECT pg_advisory_xact_lock(%s)"
-
-
-def _lock_key(namespace: str, key: str) -> int:
-    """Gera uma chave de lock determinística via SHA-256 para o namespace.
-
-    Produz um inteiro signed 64-bit a partir dos primeiros 8 bytes do hash,
-    compatível com ``pg_advisory_xact_lock(bigint)``.
-    """
-    payload = f"{namespace}:{key}".encode()
-    return int.from_bytes(
-        hashlib.sha256(payload).digest()[:8],
-        byteorder="big",
-        signed=True,
-    )
-
+from shared.repositories._locks import ADVISORY_TRANSACTION_LOCK, advisory_lock_key
 
 _SELECT_BY_SOURCE_MESSAGE = """
     SELECT e.id, e.amount, e.description, e.original_description,
            e.payment_method, e.occurred_at, e.category_id, c.name AS category_name,
-           e.installment_number, e.total_installments
+           e.installment_number, e.total_installments, e.recurrence_period
     FROM expense e
     JOIN category c ON c.id = e.category_id
     WHERE e.user_id = %(user_id)s
@@ -60,7 +43,7 @@ _INSERT_EXPENSE = """
     )
     RETURNING id, amount, description, original_description,
               payment_method, occurred_at, category_id,
-              installment_number, total_installments
+              installment_number, total_installments, recurrence_period
 """
 
 _INSERT_AUDIT = """
@@ -74,7 +57,7 @@ _INSERT_AUDIT = """
 _SELECT_LAST = """
     SELECT e.id, e.amount, e.description, e.original_description,
            e.payment_method, e.occurred_at, e.category_id, c.name AS category_name,
-           e.installment_number, e.total_installments
+           e.installment_number, e.total_installments, e.recurrence_period
     FROM expense e
     JOIN category c ON c.id = e.category_id
     WHERE e.user_id = %(user_id)s
@@ -97,9 +80,15 @@ class ExpenseRecord:
     category_name: str
     installment_number: int | None = None
     total_installments: int | None = None
+    recurrence_period: date | None = None
 
 
-def _to_record(row: dict, category_name: str) -> ExpenseRecord:
+def to_expense_record(row: dict, category_name: str) -> ExpenseRecord:
+    """Converte uma linha de ``expense`` no registro usado pelo restante do app.
+
+    Pública porque o repositório de gastos fixos materializa lançamentos na
+    mesma tabela e precisa da mesma conversão.
+    """
     return ExpenseRecord(
         id=row["id"],
         amount=row["amount"],
@@ -111,6 +100,31 @@ def _to_record(row: dict, category_name: str) -> ExpenseRecord:
         category_name=category_name,
         installment_number=row.get("installment_number"),
         total_installments=row.get("total_installments"),
+        recurrence_period=row.get("recurrence_period"),
+    )
+
+
+async def insert_creation_audit(
+    conn: DictConnection,
+    user_id: str,
+    expense_id: UUID,
+    after_data: dict,
+    source_message_id: str | None,
+) -> None:
+    """Registra a criação de um lançamento em ``expense_audit_log``.
+
+    Todo caminho que insere em ``expense`` passa por aqui — é o que mantém a
+    rastreabilidade exigida pelo PRD válida também para os lançamentos gerados
+    a partir de uma regra recorrente, que não têm mensagem de origem.
+    """
+    await conn.execute(
+        _INSERT_AUDIT,
+        {
+            "expense_id": str(expense_id),
+            "user_id": user_id,
+            "after_data": Jsonb(after_data),
+            "source_message_id": source_message_id,
+        },
     )
 
 
@@ -122,7 +136,7 @@ async def _fetch_by_source_message(
         {"user_id": user_id, "source_message_id": source_message_id},
     )
     rows = await cur.fetchall()
-    return [_to_record(row, row["category_name"]) for row in rows]
+    return [to_expense_record(row, row["category_name"]) for row in rows]
 
 
 async def insert_expenses(
@@ -153,7 +167,10 @@ async def insert_expenses(
     async with user_connection(user_id_str) as conn:
         if source_id_str is not None:
             # Serializa retries concorrentes da mesma mensagem antes de checar.
-            await conn.execute(_LOCK_MESSAGE, (_lock_key("expense", source_id_str),))
+            await conn.execute(
+                ADVISORY_TRANSACTION_LOCK,
+                (advisory_lock_key("expense", source_id_str),),
+            )
 
             existing = await _fetch_by_source_message(conn, user_id_str, source_id_str)
             if existing:
@@ -181,30 +198,26 @@ async def insert_expenses(
             if row is None:  # pragma: no cover - RETURNING sempre devolve linha
                 raise RuntimeError("INSERT em expense não retornou linha")
 
-            record = _to_record(row, expense.category_name)
+            record = to_expense_record(row, expense.category_name)
             records.append(record)
 
-            await conn.execute(
-                _INSERT_AUDIT,
-                {
-                    "expense_id": str(record.id),
-                    "user_id": user_id_str,
-                    "after_data": Jsonb(
-                        {
-                            "amount": str(record.amount),
-                            "description": record.description,
-                            "original_description": record.original_description,
-                            "payment_method": record.payment_method,
-                            "occurred_at": record.occurred_at.isoformat(),
-                            "category_id": str(record.category_id),
-                            "category_name": record.category_name,
-                            "confidence": expense.confidence,
-                            "installment_number": expense.installment_number,
-                            "total_installments": expense.total_installments,
-                        }
-                    ),
-                    "source_message_id": source_id_str,
+            await insert_creation_audit(
+                conn,
+                user_id=user_id_str,
+                expense_id=record.id,
+                after_data={
+                    "amount": str(record.amount),
+                    "description": record.description,
+                    "original_description": record.original_description,
+                    "payment_method": record.payment_method,
+                    "occurred_at": record.occurred_at.isoformat(),
+                    "category_id": str(record.category_id),
+                    "category_name": record.category_name,
+                    "confidence": expense.confidence,
+                    "installment_number": expense.installment_number,
+                    "total_installments": expense.total_installments,
                 },
+                source_message_id=source_id_str,
             )
 
     return records
@@ -220,4 +233,4 @@ async def get_last_expense(user_id: str | UUID) -> ExpenseRecord | None:
         cur = await conn.execute(_SELECT_LAST, {"user_id": str(user_id)})
         row = await cur.fetchone()
 
-    return _to_record(row, row["category_name"]) if row else None
+    return to_expense_record(row, row["category_name"]) if row else None
