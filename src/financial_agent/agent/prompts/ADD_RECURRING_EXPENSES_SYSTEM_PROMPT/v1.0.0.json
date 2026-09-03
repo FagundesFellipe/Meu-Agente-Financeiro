@@ -8,5 +8,5 @@
   "owner": "Fellipe Fagundes",
   "change_note": "Versão inicial do extrator de gastos fixos mensais (Stack 1). Devolve uma ou mais regras por mensagem, só com hints textuais; valor, dia de recorrência, data de início, categoria e meio de pagamento são resolvidos em Python.",
   "created_at": "2026-08-31T20:17:12.100593+00:00",
-  "status": "active"
+  "status": "deprecated"
 }

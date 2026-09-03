@@ -11,19 +11,45 @@ Regras que este módulo garante:
       vem da combinação do advisory lock com a checagem por descrição — o
       resultado observável é o mesmo.
     - Dinheiro em ``Decimal``/NUMERIC — nunca float binário.
+
+O módulo também materializa as regras em lançamentos reais
+(``materialize_due_recurring_expenses``). A materialização é deliberadamente
+independente do grafo — recebe ``user_id`` e ``today`` — para que um processo
+agendado futuro possa chamá-la sem qualquer alteração.
 """
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, time
 from decimal import Decimal
 from uuid import UUID
+from zoneinfo import ZoneInfo
+
+import structlog
 
 from financial_agent.agent.state_graph import PaymentMethod, RecurringExpenseDetails
 from financial_agent.agent.tools.get_category import normalize
+from financial_agent.agent.tools.recurrence import (
+    MAX_RETROACTIVE_PERIODS,
+    PendingPeriods,
+    effective_date,
+    pending_periods,
+)
 from shared.db import DictConnection, user_connection
 from shared.repositories._locks import ADVISORY_TRANSACTION_LOCK, advisory_lock_key
+from shared.repositories.expenses import (
+    ExpenseRecord,
+    insert_creation_audit,
+    to_expense_record,
+)
+
+logger = structlog.get_logger()
 
 _LOCK_NAMESPACE = "recurring_expense"
+_CATCHUP_LOCK_NAMESPACE = "recurring_catchup"
+
+# Meio-dia replica a convenção de ``resolve_occurred_at`` para datas passadas:
+# gravar 00:00 desloca o lançamento para o dia anterior em fusos a oeste de UTC.
+_CHARGE_TIME = time(12, 0)
 
 _SELECT_ACTIVE = """
     SELECT r.id, r.description, r.amount, r.payment_method, r.recurrence_day,
@@ -33,6 +59,42 @@ _SELECT_ACTIVE = """
     WHERE r.user_id = %(user_id)s
       AND r.is_active IS TRUE
     ORDER BY r.created_at
+"""
+
+_SELECT_ACTIVE_WITH_GENERATED_PERIODS = """
+    SELECT r.id, r.description, r.amount, r.payment_method, r.recurrence_day,
+           r.starts_at, r.ends_at, r.category_id, c.name AS category_name,
+           COALESCE(
+               ARRAY_AGG(e.recurrence_period)
+                   FILTER (WHERE e.recurrence_period IS NOT NULL),
+               ARRAY[]::DATE[]
+           ) AS generated_periods
+    FROM recurring_expense r
+    JOIN category c ON c.id = r.category_id
+    LEFT JOIN expense e
+           ON e.recurring_expense_id = r.id
+          AND e.user_id = %(user_id)s
+    WHERE r.user_id = %(user_id)s
+      AND r.is_active IS TRUE
+    GROUP BY r.id, c.name
+    ORDER BY r.created_at
+"""
+
+_INSERT_MATERIALIZED_EXPENSE = """
+    INSERT INTO expense (
+        user_id, category_id, recurring_expense_id, recurrence_period,
+        amount, description, original_description, payment_method, occurred_at
+    ) VALUES (
+        %(user_id)s, %(category_id)s, %(recurring_expense_id)s, %(recurrence_period)s,
+        %(amount)s, %(description)s, %(original_description)s, %(payment_method)s,
+        %(occurred_at)s
+    )
+    ON CONFLICT (recurring_expense_id, recurrence_period)
+    WHERE recurring_expense_id IS NOT NULL
+    DO NOTHING
+    RETURNING id, amount, description, original_description, payment_method,
+              occurred_at, category_id, installment_number, total_installments,
+              recurrence_period
 """
 
 _INSERT_RECURRING_EXPENSE = """
@@ -204,3 +266,170 @@ async def _insert_one(
         raise RuntimeError("INSERT em recurring_expense não retornou linha")
 
     return _to_record(row, recurring_expense.category_name)
+
+
+@dataclass(frozen=True, slots=True)
+class MaterializationResult:
+    """O que uma execução de catch-up produziu, para log e para os testes."""
+
+    generated: list[ExpenseRecord]
+    rules_processed: int
+    truncated_rules: list[UUID]
+
+
+@dataclass(frozen=True, slots=True)
+class _ActiveRule:
+    """Regra ativa junto das competências que ela já materializou."""
+
+    rule: RecurringExpenseRecord
+    generated_periods: frozenset[date]
+
+
+async def materialize_due_recurring_expenses(
+    user_id: str | UUID,
+    today: date,
+    user_timezone: str,
+) -> MaterializationResult:
+    """Cria os lançamentos que as regras ativas do usuário já deveriam ter gerado.
+
+    A operação é idempotente por construção: a chave
+    ``(recurring_expense_id, recurrence_period)`` é única no banco, e o
+    ``ON CONFLICT DO NOTHING`` absorve a corrida que o advisory lock não pegar.
+    Executá-la N vezes no mesmo dia produz o mesmo resultado de uma única
+    execução.
+
+    Não depende do grafo: um processo agendado futuro pode chamá-la como está.
+
+    Args:
+        user_id: Dono das regras e dos lançamentos.
+        today: Data de referência no fuso do usuário. Injetada, nunca lida do
+            relógio, para manter o comportamento determinístico.
+        user_timezone: Fuso IANA do usuário, usado para posicionar
+            ``occurred_at``.
+
+    Returns:
+        Os lançamentos criados, quantas regras foram avaliadas e quais tiveram
+        períodos além do limite retroativo.
+    """
+    user_id_str = str(user_id)
+    zone = ZoneInfo(user_timezone)
+
+    generated: list[ExpenseRecord] = []
+    truncated_rules: list[UUID] = []
+
+    async with user_connection(user_id_str) as conn:
+        # Serializa o catch-up concorrente do mesmo usuário: sem isso, dois
+        # workers leriam a mesma lista de competências pendentes.
+        await conn.execute(
+            ADVISORY_TRANSACTION_LOCK,
+            (advisory_lock_key(_CATCHUP_LOCK_NAMESPACE, user_id_str),),
+        )
+
+        active_rules = await _fetch_active_with_generated_periods(conn, user_id_str)
+
+        for active in active_rules:
+            due = _due_periods(active, today, user_id_str)
+            if due.remaining:
+                truncated_rules.append(active.rule.id)
+
+            for period in due.due:
+                record = await _materialize_period(
+                    conn, user_id_str, active.rule, period, zone
+                )
+                if record is not None:
+                    generated.append(record)
+
+    return MaterializationResult(
+        generated=generated,
+        rules_processed=len(active_rules),
+        truncated_rules=truncated_rules,
+    )
+
+
+def _due_periods(active: _ActiveRule, today: date, user_id: str) -> PendingPeriods:
+    """Períodos a gerar agora, registrando em log o que ficou para a próxima."""
+    due = pending_periods(
+        recurrence_day=active.rule.recurrence_day,
+        starts_at=active.rule.starts_at,
+        ends_at=active.rule.ends_at,
+        already_generated=active.generated_periods,
+        today=today,
+        limit=MAX_RETROACTIVE_PERIODS,
+    )
+
+    if due.remaining:
+        logger.info(
+            "recurring_catchup_truncated",
+            user_id=user_id,
+            recurring_expense_id=str(active.rule.id),
+            remaining_periods=due.remaining,
+        )
+
+    return due
+
+
+async def _fetch_active_with_generated_periods(
+    conn: DictConnection, user_id: str
+) -> list[_ActiveRule]:
+    cur = await conn.execute(
+        _SELECT_ACTIVE_WITH_GENERATED_PERIODS, {"user_id": user_id}
+    )
+    rows = await cur.fetchall()
+    return [
+        _ActiveRule(
+            rule=_to_record(row, row["category_name"]),
+            generated_periods=frozenset(row["generated_periods"]),
+        )
+        for row in rows
+    ]
+
+
+async def _materialize_period(
+    conn: DictConnection,
+    user_id: str,
+    rule: RecurringExpenseRecord,
+    period: date,
+    zone: ZoneInfo,
+) -> ExpenseRecord | None:
+    """Insere o lançamento de um período, ou ``None`` se outra execução ganhou."""
+    occurred_at = datetime.combine(
+        effective_date(rule.recurrence_day, period), _CHARGE_TIME, tzinfo=zone
+    )
+
+    cur = await conn.execute(
+        _INSERT_MATERIALIZED_EXPENSE,
+        {
+            "user_id": user_id,
+            "category_id": str(rule.category_id),
+            "recurring_expense_id": str(rule.id),
+            "recurrence_period": period,
+            "amount": rule.amount,
+            "description": rule.description,
+            "original_description": rule.description,
+            "payment_method": rule.payment_method,
+            "occurred_at": occurred_at,
+        },
+    )
+    row = await cur.fetchone()
+    if row is None:
+        return None
+
+    record = to_expense_record(row, rule.category_name)
+    await insert_creation_audit(
+        conn,
+        user_id=user_id,
+        expense_id=record.id,
+        after_data={
+            "amount": str(record.amount),
+            "description": record.description,
+            "original_description": record.original_description,
+            "payment_method": record.payment_method,
+            "occurred_at": record.occurred_at.isoformat(),
+            "category_id": str(record.category_id),
+            "category_name": record.category_name,
+            "recurring_expense_id": str(rule.id),
+            "recurrence_period": period.isoformat(),
+        },
+        source_message_id=None,
+    )
+    return record

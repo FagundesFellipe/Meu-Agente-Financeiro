@@ -5,6 +5,7 @@ Para inspecionar o desenho ou fazer um teste manual, use ``make graph`` ou
 ``python -m financial_agent.agent.build_graph_workflow``.
 """
 
+from time import perf_counter
 from typing import Literal, cast
 
 import structlog
@@ -37,6 +38,9 @@ from shared.agent_builder import build_agent_for_version
 from shared.config import settings
 from shared.db import open_checkpointer
 from shared.prompt_loader import get_active_version, load_prompt_config
+from shared.repositories.recurring_expenses import (
+    materialize_due_recurring_expenses,
+)
 from shared.repositories.users import ensure_user
 
 logger = structlog.get_logger()
@@ -75,6 +79,43 @@ async def ensure_user_node(state: GraphState) -> dict:
         "user_timezone": user.timezone,
         "is_new_user": created,
     }
+
+
+async def catch_up_recurring_expenses(state: GraphState) -> dict:
+    """Materializa os gastos fixos já vencidos antes de tratar a mensagem.
+
+    Catch-up preguiçoso: como o produto é apenas conversacional, gerar os
+    lançamentos no instante da mensagem é, para o usuário, indistinguível de
+    gerar por agendamento — e dispensa processo, container e monitoramento.
+
+    A geração é silenciosa e a falha é absorvida: catch-up é manutenção de
+    dados, nunca a intenção do usuário. Se ele falhar enquanto o usuário
+    registra um almoço, o almoço deve ser registrado mesmo assim.
+    """
+    user_id = state["user_id"]
+    user_timezone = state["user_timezone"]
+    started_at = perf_counter()
+
+    try:
+        result = await materialize_due_recurring_expenses(
+            user_id=user_id,
+            today=tools_calendar.user_now(user_timezone).date(),
+            user_timezone=user_timezone,
+        )
+    except Exception:
+        logger.exception("recurring_catchup_failed", user_id=user_id)
+        return {}
+
+    logger.info(
+        "recurring_catchup_finished",
+        user_id=user_id,
+        generated=len(result.generated),
+        rules_processed=result.rules_processed,
+        truncated_rules=[str(rule_id) for rule_id in result.truncated_rules],
+        duration_ms=round((perf_counter() - started_at) * 1000, 1),
+    )
+
+    return {"materialized_recurring_expenses": len(result.generated)}
 
 
 async def finalize_response(state: GraphState) -> dict:
@@ -227,6 +268,7 @@ def build_workflow() -> StateGraph:
 
     builder.add_node("blocked_input", blocked_input)
     builder.add_node("ensure_user_node", ensure_user_node)
+    builder.add_node("catch_up_recurring_expenses", catch_up_recurring_expenses)
     builder.add_node("expire_pending_expenses", expire_pending_expenses)
     builder.add_node("llm_call_router", llm_call_router)
     builder.add_node("add_new_expenses_agent", add_new_expenses)
@@ -248,7 +290,8 @@ def build_workflow() -> StateGraph:
         route_input_content,
         ["blocked_input", "ensure_user_node"],
     )
-    builder.add_edge("ensure_user_node", "expire_pending_expenses")
+    builder.add_edge("ensure_user_node", "catch_up_recurring_expenses")
+    builder.add_edge("catch_up_recurring_expenses", "expire_pending_expenses")
     builder.add_conditional_edges(
         "expire_pending_expenses",
         route_after_pending_expiration,

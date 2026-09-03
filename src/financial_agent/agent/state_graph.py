@@ -406,5 +406,6 @@ class GraphState(TypedDict):
         PendingRecurringExpenseResolutionRoute
     ]
     recurring_expense_details: NotRequired[list[RecurringExpenseDetails]]
+    materialized_recurring_expenses: NotRequired[int]
     response_text: NotRequired[str | None]
     errors: NotRequired[list[str]]
