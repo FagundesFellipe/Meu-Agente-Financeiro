@@ -47,6 +47,129 @@ PaymentMethod = Literal[
 # nunca inferido pelo modelo.
 PaymentMethodHint = Literal["pix", "credit_card", "debit_card", "cash"]
 
+ReportOperation = Literal[
+    "total",
+    "comparar_periodos",
+    "listar_gastos",
+    "total_por_categoria",
+    "listar_gastos_fixos",
+]
+PeriodSymbol = Literal[
+    "today",
+    "yesterday",
+    "this_week",
+    "last_week",
+    "this_month",
+    "last_month",
+    "specific_day",
+]
+PeriodCombination = Literal["merge", "compare"]
+
+_PERIOD_UNIT: dict[str, Literal["day", "week", "month"]] = {
+    "today": "day",
+    "yesterday": "day",
+    "specific_day": "day",
+    "this_week": "week",
+    "last_week": "week",
+    "this_month": "month",
+    "last_month": "month",
+}
+
+
+def period_unit(symbol: PeriodSymbol) -> Literal["day", "week", "month"]:
+    """Retorna a unidade determinística de um símbolo de período."""
+    return _PERIOD_UNIT[symbol]
+
+
+class PeriodRef(BaseModel):
+    """Período simbólico extraído pelo LLM, ainda sem datas calculadas."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    symbol: PeriodSymbol
+    day_hint: str | None = None
+
+    @model_validator(mode="after")
+    def validate_day_hint(self) -> "PeriodRef":
+        is_specific_day = self.symbol == "specific_day"
+        if is_specific_day != bool(self.day_hint and self.day_hint.strip()):
+            raise ValueError("day_hint deve existir somente para specific_day")
+        return self
+
+
+class Pagination(BaseModel):
+    """Pedido de continuação; o offset permanece responsabilidade do Python."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    intent: Literal["more"]
+    extra_count: int | None = Field(default=None, ge=1)
+
+
+class ExpenseQuery(BaseModel):
+    """Contrato fechado da interpretação de uma consulta de gastos."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    operation: ReportOperation
+    periods: list[PeriodRef] = Field(default_factory=list)
+    period_combination: PeriodCombination = "merge"
+    category: str | None = None
+    payment_method: PaymentMethod | None = None
+    limit: int | None = Field(default=None, ge=1)
+    pagination: Pagination | None = None
+    unsupported: bool = False
+    unsupported_reason: str | None = None
+
+    @model_validator(mode="after")
+    def validate_operation_contract(self) -> "ExpenseQuery":
+        if self.unsupported:
+            return self
+        if (self.limit is not None or self.pagination is not None) and (
+            self.operation != "listar_gastos"
+        ):
+            raise ValueError("limit e pagination são exclusivos de listar_gastos")
+        if self.operation == "listar_gastos_fixos":
+            if any(
+                (
+                    self.periods,
+                    self.category,
+                    self.payment_method,
+                    self.limit,
+                    self.pagination,
+                )
+            ):
+                raise ValueError("listar_gastos_fixos não aceita filtros")
+            return self
+        if self.operation == "total_por_categoria" and self.category is not None:
+            raise ValueError("total_por_categoria não aceita filtro de categoria")
+        if self.operation == "comparar_periodos":
+            units = {period_unit(period.symbol) for period in self.periods}
+            if self.period_combination != "compare" or len(self.periods) != 2:
+                raise ValueError("comparar_periodos exige exatamente dois períodos")
+            if len(units) != 1:
+                raise ValueError("os períodos comparados devem ter a mesma unidade")
+            return self
+        if self.period_combination == "compare":
+            raise ValueError("compare é exclusivo de comparar_periodos")
+        if not self.periods and self.pagination is None:
+            raise ValueError("a operação exige ao menos um período")
+        return self
+
+
+class ReportPageCursor(BaseModel):
+    """Cursor mínimo persistido pelo checkpointer para continuar uma listagem."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    period_symbols: list[str]
+    period_combination: str
+    category_name: str | None = None
+    payment_method: PaymentMethod | None = None
+    next_offset: int = Field(ge=0)
+    total_count: int = Field(ge=0)
+    created_at: datetime
+
 
 class ExtractedExpense(BaseModel):
     """Gasto bruto extraído pelo LLM, antes de qualquer validação determinística.
@@ -407,5 +530,6 @@ class GraphState(TypedDict):
     ]
     recurring_expense_details: NotRequired[list[RecurringExpenseDetails]]
     materialized_recurring_expenses: NotRequired[int]
+    report_page_cursor: NotRequired[ReportPageCursor]
     response_text: NotRequired[str | None]
     errors: NotRequired[list[str]]

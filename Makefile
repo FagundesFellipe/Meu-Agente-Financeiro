@@ -41,8 +41,11 @@ worker: ## Roda o worker localmente fora do docker
 	uv run python -m financial_agent.worker.main
 
 ##@ Evals
-run-evals: ## Executa evals configurados
-	uv run python src/eval/run_eval.py	
+run-evals-add: ## Executa evals configurados add expenses
+	uv run python src/eval/run_eval.py
+
+run-evals-report: ## Executa evals configurados report expenses
+	uv run python src/eval/run_report_eval.py
 
 ##@ Qualidade de Código
 # Estes comandos verificam estilo e tipos, NÃO lógica.

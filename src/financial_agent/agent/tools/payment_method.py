@@ -10,7 +10,19 @@ import re
 
 from financial_agent.agent.state_graph import PaymentMethod
 
-__all__ = ["normalize_payment_method"]
+__all__ = [
+    "PAYMENT_METHOD_DISPLAY",
+    "display_payment_method",
+    "normalize_payment_method",
+]
+
+PAYMENT_METHOD_DISPLAY: dict[PaymentMethod, str] = {
+    "pix": "Pix",
+    "credit_card": "Cartão de crédito",
+    "debit_card": "Cartão de débito",
+    "cash": "Dinheiro",
+    "not_informed": "Não informado",
+}
 
 _ACCENTS = str.maketrans("áàâãäéèêëíìîïóòôõöúùûüç", "aaaaaeeeeiiiiooooouuuuc")
 
@@ -56,3 +68,10 @@ def normalize_payment_method(hint: str | None) -> PaymentMethod:
     text = re.sub(r"\s+", " ", hint.strip().lower().translate(_ACCENTS))
 
     return _ALIASES.get(text, "not_informed")
+
+
+def display_payment_method(payment_method: PaymentMethod | None) -> str:
+    """Retorna o rótulo em português; ``NULL`` legado vira não informado."""
+    if payment_method is None:
+        return "Não informado"
+    return PAYMENT_METHOD_DISPLAY[payment_method]

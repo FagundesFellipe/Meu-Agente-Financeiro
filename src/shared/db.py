@@ -97,6 +97,7 @@ async def get_checkpointer() -> AsyncPostgresSaver:
                         "ExtractedRecurringExpense",
                     ),
                     ("financial_agent.agent.state_graph", "PendingRecurringExpense"),
+                    ("financial_agent.agent.state_graph", "ReportPageCursor"),
                 ]
             ),
         )

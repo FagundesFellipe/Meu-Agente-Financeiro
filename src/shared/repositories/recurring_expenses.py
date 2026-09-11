@@ -179,6 +179,14 @@ async def list_active_recurring_expenses(
         return await _fetch_active(conn, str(user_id))
 
 
+async def list_active_recurring_expenses_sorted(
+    user_id: str | UUID,
+) -> list[RecurringExpenseRecord]:
+    """Retorna regras ativas em ordem alfabética estável e sem acentos."""
+    records = await list_active_recurring_expenses(user_id)
+    return sorted(records, key=lambda record: normalize(record.description))
+
+
 async def find_active_by_normalized_description(
     user_id: str | UUID, description: str
 ) -> RecurringExpenseRecord | None:

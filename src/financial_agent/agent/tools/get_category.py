@@ -24,6 +24,7 @@ __all__ = [
     "find_category",
     "normalize",
     "resolve_category",
+    "suggest_similar_categories",
 ]
 
 
@@ -95,6 +96,23 @@ def find_category(
                 return match
 
     return _by_description(description, categories)
+
+
+def suggest_similar_categories(
+    name: str, categories: list[CategoryRecord], k: int
+) -> list[str]:
+    """Sugere até ``k`` categorias globais parecidas, sem criar categoria."""
+    if k <= 0:
+        return []
+    global_by_normalized = {
+        normalize(category.name): category
+        for category in categories
+        if not category.is_personal
+    }
+    matches = get_close_matches(
+        normalize(name), list(global_by_normalized), n=k, cutoff=0.4
+    )
+    return [global_by_normalized[match].name for match in matches]
 
 
 def resolve_category(

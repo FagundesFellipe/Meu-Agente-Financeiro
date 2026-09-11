@@ -8,5 +8,5 @@
   "owner": "Fellipe Fagundes",
   "change_note": "Adição da  intenção  continue_pending_expense, usada apenas para respostas, confirmações ou   cancelamentos de uma pendência presente no contexto.",
   "created_at": "2026-08-21T18:32:29.581451+00:00",
-  "status": "active"
+  "status": "deprecated"
 }

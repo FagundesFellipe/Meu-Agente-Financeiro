@@ -2,7 +2,10 @@
 
 import pytest
 
-from financial_agent.agent.tools.payment_method import normalize_payment_method
+from financial_agent.agent.tools.payment_method import (
+    display_payment_method,
+    normalize_payment_method,
+)
 
 # Valores aceitos pelo CHECK em db/migrations/002_expenses.sql
 ALLOWED = {"pix", "credit_card", "debit_card", "cash", "not_informed"}
@@ -39,3 +42,7 @@ def test_output_is_always_accepted_by_the_check_constraint():
     samples = ["pix", "crédito", "débito", "dinheiro", None, "outro qualquer"]
 
     assert {normalize_payment_method(s) for s in samples} <= ALLOWED
+
+
+def test_display_treats_legacy_null_as_not_informed():
+    assert display_payment_method(None) == "Não informado"
