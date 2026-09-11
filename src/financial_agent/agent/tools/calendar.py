@@ -16,7 +16,12 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from shared.config import settings
 
-__all__ = ["DateResolutionError", "resolve_occurred_at", "user_now"]
+__all__ = [
+    "DateResolutionError",
+    "resolve_calendar_date",
+    "resolve_occurred_at",
+    "user_now",
+]
 
 
 class DateResolutionError(ValueError):
@@ -70,7 +75,8 @@ def user_now(timezone: str | None = None) -> datetime:
     return datetime.now(tz=_zone(timezone))
 
 
-def _resolve_date(hint: str, reference: datetime) -> date_type:
+def resolve_calendar_date(hint: str, reference: datetime) -> date_type:
+    """Resolve uma expressão de data sem escolher horário ou persistir dados."""
     text = re.sub(r"\s+", " ", hint.strip().lower().translate(_ACCENTS))
     today = reference.date()
 
@@ -180,7 +186,7 @@ def resolve_occurred_at(
     zone = _zone(timezone)
     now = reference.astimezone(zone) if reference else datetime.now(tz=zone)
 
-    resolved_date = _resolve_date(date_hint, now) if date_hint else now.date()
+    resolved_date = resolve_calendar_date(date_hint, now) if date_hint else now.date()
 
     if time_hint:
         resolved_time = _resolve_time(time_hint)

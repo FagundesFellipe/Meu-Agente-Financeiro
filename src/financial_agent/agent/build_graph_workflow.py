@@ -25,6 +25,7 @@ from financial_agent.agent.ReAct.add_new_expenses_agent import add_new_expenses
 from financial_agent.agent.ReAct.add_recurring_expenses_agent import (
     add_recurring_expenses,
 )
+from financial_agent.agent.ReAct.report_agent import view_expenses_report
 from financial_agent.agent.ReAct.resolve_pending_expenses_agent import (
     resolve_pending_expenses,
 )
@@ -257,11 +258,6 @@ async def undefined_agent(state: GraphState) -> dict:
     return {"response_text": _NOT_IMPLEMENTED_YET}
 
 
-async def report_agent(state: GraphState) -> dict:
-    """Placeholder do agente de relatórios (ver ReAct/report_agent.py)."""
-    return {"response_text": _NOT_IMPLEMENTED_YET}
-
-
 def build_workflow() -> StateGraph:
     """Monta o grafo do assistente, sem compilar."""
     builder = StateGraph(GraphState, input_schema=InputState)
@@ -277,7 +273,7 @@ def build_workflow() -> StateGraph:
     builder.add_node(
         "resolve_pending_recurring_expenses_agent", resolve_pending_recurring_expenses
     )
-    builder.add_node("report_agent", report_agent)
+    builder.add_node("report_agent", view_expenses_report)
     builder.add_node("greeting_agent", greeting_agent)
     builder.add_node("undefined_agent", undefined_agent)
     builder.add_node("finalize_response", finalize_response)

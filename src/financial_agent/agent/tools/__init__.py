@@ -12,6 +12,7 @@ from financial_agent.agent.tools.amount_parser import (
 )
 from financial_agent.agent.tools.calendar import (
     DateResolutionError,
+    resolve_calendar_date,
     resolve_occurred_at,
     user_now,
 )
@@ -20,14 +21,23 @@ from financial_agent.agent.tools.get_category import (
     resolve_category,
 )
 from financial_agent.agent.tools.payment_method import normalize_payment_method
+from financial_agent.agent.tools.period import (
+    PeriodResolutionError,
+    ResolvedPeriod,
+    resolve_period,
+)
 
 __all__ = [
     "AmountParseError",
     "CategoryResolutionError",
     "DateResolutionError",
+    "PeriodResolutionError",
+    "ResolvedPeriod",
     "normalize_payment_method",
     "parse_expense_amount",
     "resolve_category",
+    "resolve_calendar_date",
     "resolve_occurred_at",
+    "resolve_period",
     "user_now",
 ]
