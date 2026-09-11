@@ -82,6 +82,10 @@ class Settings(BaseSettings):
     agent_id: str = "finantial_agent"
     default_timezone: str = "America/Sao_Paulo"
     fallback_category_name: str = "Outros gastos"
+    report_page_size: int = 6
+    report_detail_max_lines: int = 15
+    report_history_turns: int = 3
+    report_similar_categories: int = 3
 
     # --- LLM Rate Limit ---
     llm_rate_limit_requests_per_second: float = 0.5

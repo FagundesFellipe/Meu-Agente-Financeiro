@@ -1,0 +1,192 @@
+[
+  {
+    "name": "relatorio-total-hoje",
+    "input": "Quanto eu gastei hoje?",
+    "expected_output": "{\"operation\":\"total\",\"periods\":[{\"symbol\":\"today\",\"day_hint\":null}],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-total-ontem",
+    "input": "Quanto gastei ontem?",
+    "expected_output": "{\"operation\":\"total\",\"periods\":[{\"symbol\":\"yesterday\",\"day_hint\":null}],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-total-esta-semana",
+    "input": "Quanto gastei essa semana?",
+    "expected_output": "{\"operation\":\"total\",\"periods\":[{\"symbol\":\"this_week\",\"day_hint\":null}],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-total-semana-passada",
+    "input": "Quanto eu gastei na semana passada?",
+    "expected_output": "{\"operation\":\"total\",\"periods\":[{\"symbol\":\"last_week\",\"day_hint\":null}],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-total-este-mes",
+    "input": "Quanto gastei esse mês?",
+    "expected_output": "{\"operation\":\"total\",\"periods\":[{\"symbol\":\"this_month\",\"day_hint\":null}],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-total-mes-passado",
+    "input": "Quanto gastei no mês passado?",
+    "expected_output": "{\"operation\":\"total\",\"periods\":[{\"symbol\":\"last_month\",\"day_hint\":null}],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-total-dia-especifico",
+    "input": "Quanto gastei no dia 10/08?",
+    "expected_output": "{\"operation\":\"total\",\"periods\":[{\"symbol\":\"specific_day\",\"day_hint\":\"10/08\"}],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-total-categoria",
+    "input": "Quanto gastei com alimentação esse mês?",
+    "expected_output": "{\"operation\":\"total\",\"periods\":[{\"symbol\":\"this_month\",\"day_hint\":null}],\"period_combination\":\"merge\",\"category\":\"alimentação\",\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-total-metodo-pix",
+    "input": "Quanto gastei no pix hoje?",
+    "expected_output": "{\"operation\":\"total\",\"periods\":[{\"symbol\":\"today\",\"day_hint\":null}],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":\"pix\",\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-total-categoria-e-metodo",
+    "input": "Quanto gastei de transporte no crédito essa semana?",
+    "expected_output": "{\"operation\":\"total\",\"periods\":[{\"symbol\":\"this_week\",\"day_hint\":null}],\"period_combination\":\"merge\",\"category\":\"transporte\",\"payment_method\":\"credit_card\",\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-comparar-semanas",
+    "input": "Compare essa semana com a semana passada",
+    "expected_output": "{\"operation\":\"comparar_periodos\",\"periods\":[{\"symbol\":\"this_week\",\"day_hint\":null},{\"symbol\":\"last_week\",\"day_hint\":null}],\"period_combination\":\"compare\",\"category\":null,\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-comparar-meses",
+    "input": "Compare esse mês com o mês passado",
+    "expected_output": "{\"operation\":\"comparar_periodos\",\"periods\":[{\"symbol\":\"this_month\",\"day_hint\":null},{\"symbol\":\"last_month\",\"day_hint\":null}],\"period_combination\":\"compare\",\"category\":null,\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-comparar-dias",
+    "input": "Compare hoje com ontem",
+    "expected_output": "{\"operation\":\"comparar_periodos\",\"periods\":[{\"symbol\":\"today\",\"day_hint\":null},{\"symbol\":\"yesterday\",\"day_hint\":null}],\"period_combination\":\"compare\",\"category\":null,\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-comparar-com-categoria",
+    "input": "Compare meus gastos com alimentação dessa semana com a semana passada",
+    "expected_output": "{\"operation\":\"comparar_periodos\",\"periods\":[{\"symbol\":\"this_week\",\"day_hint\":null},{\"symbol\":\"last_week\",\"day_hint\":null}],\"period_combination\":\"compare\",\"category\":\"alimentação\",\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-comparar-com-metodo",
+    "input": "Compare meus gastos no crédito desse mês com o mês passado",
+    "expected_output": "{\"operation\":\"comparar_periodos\",\"periods\":[{\"symbol\":\"this_month\",\"day_hint\":null},{\"symbol\":\"last_month\",\"day_hint\":null}],\"period_combination\":\"compare\",\"category\":null,\"payment_method\":\"credit_card\",\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-listar-gastos-hoje",
+    "input": "Quais foram meus gastos hoje?",
+    "expected_output": "{\"operation\":\"listar_gastos\",\"periods\":[{\"symbol\":\"today\",\"day_hint\":null}],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-listar-gastos-limite",
+    "input": "Me mostra meus últimos 5 gastos desse mês",
+    "expected_output": "{\"operation\":\"listar_gastos\",\"periods\":[{\"symbol\":\"this_month\",\"day_hint\":null}],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":null,\"limit\":5,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-listar-gastos-categoria",
+    "input": "Lista meus gastos com transporte essa semana",
+    "expected_output": "{\"operation\":\"listar_gastos\",\"periods\":[{\"symbol\":\"this_week\",\"day_hint\":null}],\"period_combination\":\"merge\",\"category\":\"transporte\",\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-listar-gastos-mostrar-mais",
+    "input": "Mostre mais",
+    "expected_output": "{\"operation\":\"listar_gastos\",\"periods\":[],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":null,\"limit\":null,\"pagination\":{\"intent\":\"more\",\"extra_count\":null},\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-listar-gastos-mostrar-mais-dez",
+    "input": "Mostre mais 10",
+    "expected_output": "{\"operation\":\"listar_gastos\",\"periods\":[],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":null,\"limit\":null,\"pagination\":{\"intent\":\"more\",\"extra_count\":10},\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-listar-gastos-metodo-debito",
+    "input": "Quais gastos fiz no débito essa semana?",
+    "expected_output": "{\"operation\":\"listar_gastos\",\"periods\":[{\"symbol\":\"this_week\",\"day_hint\":null}],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":\"debit_card\",\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-listar-gastos-dinheiro-ontem",
+    "input": "Quais gastos em dinheiro eu tive ontem?",
+    "expected_output": "{\"operation\":\"listar_gastos\",\"periods\":[{\"symbol\":\"yesterday\",\"day_hint\":null}],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":\"cash\",\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-listar-gastos-pix-limite-mes-passado",
+    "input": "Mostra os 3 últimos gastos no pix do mês passado",
+    "expected_output": "{\"operation\":\"listar_gastos\",\"periods\":[{\"symbol\":\"last_month\",\"day_hint\":null}],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":\"pix\",\"limit\":3,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-total-por-categoria-mes",
+    "input": "Quanto gastei por categoria este mês?",
+    "expected_output": "{\"operation\":\"total_por_categoria\",\"periods\":[{\"symbol\":\"this_month\",\"day_hint\":null}],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-total-por-categoria-semana-passada",
+    "input": "Quanto gastei por categoria na semana passada?",
+    "expected_output": "{\"operation\":\"total_por_categoria\",\"periods\":[{\"symbol\":\"last_week\",\"day_hint\":null}],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-total-por-categoria-metodo",
+    "input": "Quanto gastei por categoria no pix esse mês?",
+    "expected_output": "{\"operation\":\"total_por_categoria\",\"periods\":[{\"symbol\":\"this_month\",\"day_hint\":null}],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":\"pix\",\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-listar-gastos-fixos",
+    "input": "Quais são meus gastos fixos?",
+    "expected_output": "{\"operation\":\"listar_gastos_fixos\",\"periods\":[],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-listar-gastos-fixos-variacao",
+    "input": "Me mostra minhas despesas recorrentes",
+    "expected_output": "{\"operation\":\"listar_gastos_fixos\",\"periods\":[],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-unsupported-minhas-categorias",
+    "input": "Quais são minhas categorias?",
+    "expected_output": "{\"operation\":\"total\",\"periods\":[],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":true,\"unsupported_reason\":\"Consulta sobre categorias cadastradas, fora das operações de relatório suportadas.\"}"
+  },
+  {
+    "name": "relatorio-unsupported-previsao",
+    "input": "Quanto vou gastar no mês que vem?",
+    "expected_output": "{\"operation\":\"total\",\"periods\":[],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":true,\"unsupported_reason\":\"Previsão de gastos futuros não é suportada.\"}"
+  },
+  {
+    "name": "relatorio-unsupported-agregacao-metodo-pagamento",
+    "input": "Quanto gastei em cada forma de pagamento esse mês?",
+    "expected_output": "{\"operation\":\"total_por_categoria\",\"periods\":[],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":true,\"unsupported_reason\":\"Agregação por meio de pagamento não é suportada.\"}"
+  },
+  {
+    "name": "relatorio-unsupported-semana-maior-gasto",
+    "input": "Qual foi a semana que eu mais gastei esse ano?",
+    "expected_output": "{\"operation\":\"total\",\"periods\":[],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":true,\"unsupported_reason\":\"Identificar a semana de maior gasto não é suportado.\"}"
+  },
+  {
+    "name": "relatorio-unsupported-intervalo-livre",
+    "input": "Quanto gastei entre 01/08 e 15/08?",
+    "expected_output": "{\"operation\":\"total\",\"periods\":[],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":true,\"unsupported_reason\":\"Intervalo livre de datas não é suportado.\"}"
+  },
+  {
+    "name": "relatorio-unsupported-fora-dominio",
+    "input": "Qual é a previsão do tempo hoje?",
+    "expected_output": "{\"operation\":\"total\",\"periods\":[],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":true,\"unsupported_reason\":\"Pergunta fora do domínio de consulta de gastos.\"}"
+  },
+  {
+    "name": "relatorio-total-dia-extenso",
+    "input": "Quanto eu gastei no dia 5 de agosto?",
+    "expected_output": "{\"operation\":\"total\",\"periods\":[{\"symbol\":\"specific_day\",\"day_hint\":\"5 de agosto\"}],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-total-categoria-sinonimo-mercado",
+    "input": "Quanto gastei no mercado esse mês?",
+    "expected_output": "{\"operation\":\"total\",\"periods\":[{\"symbol\":\"this_month\",\"day_hint\":null}],\"period_combination\":\"merge\",\"category\":\"mercado\",\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-total-saude-mes-passado",
+    "input": "Quanto gastei com saúde no mês passado?",
+    "expected_output": "{\"operation\":\"total\",\"periods\":[{\"symbol\":\"last_month\",\"day_hint\":null}],\"period_combination\":\"merge\",\"category\":\"saúde\",\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  },
+  {
+    "name": "relatorio-total-merge-dois-periodos",
+    "input": "Quanto gastei somando hoje e ontem?",
+    "expected_output": "{\"operation\":\"total\",\"periods\":[{\"symbol\":\"today\",\"day_hint\":null},{\"symbol\":\"yesterday\",\"day_hint\":null}],\"period_combination\":\"merge\",\"category\":null,\"payment_method\":null,\"limit\":null,\"pagination\":null,\"unsupported\":false,\"unsupported_reason\":null}"
+  }
+]
